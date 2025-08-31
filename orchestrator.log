@@ -1,6 +1,0 @@
-INFO:     Started server process [5575]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-Received player event: event_type='test_event' timestamp=datetime.datetime(2025, 8, 30, 21, 28, 25, 65209) payload={'foo': 'bar'}
-INFO:     127.0.0.1:45170 - "POST /player_event HTTP/1.1" 200 OK
