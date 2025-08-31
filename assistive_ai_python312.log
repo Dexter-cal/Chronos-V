@@ -1,0 +1,21 @@
+2025-08-31 08:11:54,660 [INFO] Starting Assistive AI server (Python 3.12 compatible)...
+2025-08-31 08:11:54,661 [INFO] Loading local model 'rbojja/intent-classification-small'...
+2025-08-31 08:11:54,664 [DEBUG] Starting new HTTPS connection (1): huggingface.co:443
+2025-08-31 08:11:54,899 [DEBUG] https://huggingface.co:443 "HEAD /rbojja/intent-classification-small/resolve/main/tokenizer_config.json HTTP/1.1" 307 0
+2025-08-31 08:11:54,917 [DEBUG] https://huggingface.co:443 "HEAD /api/resolve-cache/models/rbojja/intent-classification-small/f898d6a8ca2c74ff74c46293f58d2a689324e55b/tokenizer_config.json HTTP/1.1" 200 0
+2025-08-31 08:11:55,009 [DEBUG] https://huggingface.co:443 "GET /api/models/rbojja/intent-classification-small/tree/main/additional_chat_templates?recursive=False&expand=False HTTP/1.1" 404 64
+2025-08-31 08:11:55,378 [DEBUG] https://huggingface.co:443 "HEAD /rbojja/intent-classification-small/resolve/main/config.json HTTP/1.1" 307 0
+2025-08-31 08:11:55,395 [DEBUG] https://huggingface.co:443 "HEAD /api/resolve-cache/models/rbojja/intent-classification-small/f898d6a8ca2c74ff74c46293f58d2a689324e55b/config.json HTTP/1.1" 200 0
+2025-08-31 08:11:55,789 [INFO] Local model loaded successfully.
+2025-08-31 08:11:55,790 [INFO] Preloading predictive tasks...
+2025-08-31 08:11:55,790 [INFO] Predicted tasks preloaded: ['task1', 'task2', 'task3']
+2025-08-31 08:11:55,892 [INFO] Starting Assistive AI server (Python 3.12 compatible)...
+2025-08-31 08:11:55,892 [INFO] Loading local model 'rbojja/intent-classification-small'...
+2025-08-31 08:11:55,949 [DEBUG] https://huggingface.co:443 "HEAD /rbojja/intent-classification-small/resolve/main/tokenizer_config.json HTTP/1.1" 307 0
+2025-08-31 08:11:55,967 [DEBUG] https://huggingface.co:443 "HEAD /api/resolve-cache/models/rbojja/intent-classification-small/f898d6a8ca2c74ff74c46293f58d2a689324e55b/tokenizer_config.json HTTP/1.1" 200 0
+2025-08-31 08:11:56,018 [DEBUG] https://huggingface.co:443 "GET /api/models/rbojja/intent-classification-small/tree/main/additional_chat_templates?recursive=False&expand=False HTTP/1.1" 404 64
+2025-08-31 08:11:56,239 [DEBUG] https://huggingface.co:443 "HEAD /rbojja/intent-classification-small/resolve/main/config.json HTTP/1.1" 307 0
+2025-08-31 08:11:56,256 [DEBUG] https://huggingface.co:443 "HEAD /api/resolve-cache/models/rbojja/intent-classification-small/f898d6a8ca2c74ff74c46293f58d2a689324e55b/config.json HTTP/1.1" 200 0
+2025-08-31 08:11:56,387 [INFO] Local model loaded successfully.
+2025-08-31 08:11:56,387 [INFO] Preloading predictive tasks...
+2025-08-31 08:11:56,387 [INFO] Predicted tasks preloaded: ['task1', 'task2', 'task3']

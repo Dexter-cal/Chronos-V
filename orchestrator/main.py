@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from .puzzles import Puzzle
 from .difficulty import PlayerEvent, DifficultySettings
 from .hints import HintRequest, Hint
-from .assistive_ai import AssistiveAIRequest, AssistiveAIResponse, process_player_request
 import uuid
 
 app = FastAPI()
@@ -66,10 +65,3 @@ async def get_hint(request: HintRequest):
         hint_type="text"
     )
     return hint
-
-@app.post("/assistive_ai_command", response_model=AssistiveAIResponse)
-async def assistive_ai_command(request: AssistiveAIRequest):
-    """
-    Receives a command for the In-Game Assistive AI and processes it.
-    """
-    return process_player_request(request)
