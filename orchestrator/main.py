@@ -3,6 +3,7 @@ from .puzzles import Puzzle
 from .difficulty import PlayerEvent, DifficultySettings
 from .hints import HintRequest, Hint
 from .physics_ai import PhysicsQueryRequest, PhysicsQueryResponse, process_physics_query
+from .animation_ai import AnimationRequest, AnimationResponse, process_animation_request
 import uuid
 
 app = FastAPI()
@@ -73,3 +74,10 @@ async def physics_query(request: PhysicsQueryRequest):
     Receives a physics query and passes it to the Physics AI for processing.
     """
     return process_physics_query(request)
+
+@app.post("/generate_animation", response_model=AnimationResponse)
+async def generate_animation(request: AnimationRequest):
+    """
+    Receives an animation request and passes it to the Animation AI for processing.
+    """
+    return process_animation_request(request)
