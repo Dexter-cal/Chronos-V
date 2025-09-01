@@ -24,36 +24,52 @@ class Vector3(BaseModel):
     y: float
     z: float
 
-# Placeholder for the core logic of the Physics AI
+# --- Hardcoded World Data for Rule-Based Logic ---
+# In a real implementation, this data would come from the World State managed by Rocco AI.
+OBSTACLES = [
+    {"center": Vector3(x=5, y=0, z=5), "size": Vector3(x=2, y=2, z=2)},
+    {"center": Vector3(x=-10, y=0, z=15), "size": Vector3(x=5, y=10, z=5)},
+]
+
+# --- Core Physics AI Logic ---
 def process_physics_query(request: PhysicsQueryRequest) -> PhysicsQueryResponse:
     """
-    Processes a physics query and returns a placeholder response.
+    Processes a physics query using simple, rule-based logic.
     """
     print(f"Received physics query: {request}")
 
-    # In a real implementation, this would interact with the Godot physics server.
-    # For now, we'll return placeholder data.
     if request.query_type == "is_area_clear":
-        # Placeholder logic: always return True
-        result = True
+        query_pos = Vector3(**request.parameters["position"])
+        is_clear = True
+        for obstacle in OBSTACLES:
+            # Simple AABB collision check
+            if (abs(query_pos.x - obstacle["center"].x) * 2 < (2 + obstacle["size"].x) and
+                abs(query_pos.y - obstacle["center"].y) * 2 < (2 + obstacle["size"].y) and
+                abs(query_pos.z - obstacle["center"].z) * 2 < (2 + obstacle["size"].z)):
+                is_clear = False
+                break
+        result = is_clear
+
     elif request.query_type == "get_surface_material":
-        # Placeholder logic: always return "stone"
-        result = "stone"
+        # Placeholder logic: return "grass" if y=0, else "air"
+        query_pos = Vector3(**request.parameters["position"])
+        result = "grass" if query_pos.y == 0 else "air"
+
     elif request.query_type == "calculate_trajectory":
-        # Placeholder logic: return a dummy trajectory
-        result = [
-            Vector3(x=0, y=0, z=0),
-            Vector3(x=1, y=1, z=1),
-            Vector3(x=2, y=0, z=2),
-        ]
+        # Placeholder logic: return a simple linear trajectory
+        start = Vector3(**request.parameters["start"])
+        end = Vector3(**request.parameters["end"])
+        result = [start, end]
+
     else:
         return PhysicsQueryResponse(
             query_type=request.query_type,
-            result=None,
+            result={"error": "Unknown query type"},
             success=False
         )
 
     return PhysicsQueryResponse(
         query_type=request.query_type,
-        result=result
+        result=result,
+        success=True
     )
