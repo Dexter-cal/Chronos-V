@@ -25,26 +25,33 @@ class ParticleEffectResponse(BaseModel):
     effect_type: str
     parameters: ParticleSystemParameters
 
-# Placeholder for the core logic of the Particles AI
+# --- Core Particles AI Logic ---
 def process_particle_effect_request(request: ParticleEffectRequest) -> ParticleEffectResponse:
     """
-    Processes a particle effect request and returns placeholder parameters.
+    Processes a particle effect request using simple, rule-based logic.
     """
     print(f"Received particle effect request: {request}")
-
-    # In a real implementation, this would use procedural generation or ML models.
-    # For now, we'll return placeholder parameters based on the effect type.
 
     params = ParticleSystemParameters()
 
     if request.effect_type == "campfire":
-        params.amount = 50
-        params.lifetime = 1.5
-        params.explosiveness = 0.2
+        params.amount = 200
+        params.lifetime = 2.5
+        params.explosiveness = 0.6
+        # In a real implementation, we would also set color ramps, velocity, etc.
     elif request.effect_type == "rain":
-        params.amount = 1000
-        params.lifetime = 5.0
+        params.amount = 4000
+        params.lifetime = 10.0
         params.explosiveness = 0.0
+    elif request.effect_type == "fireball":
+        params.amount = 500
+        params.lifetime = 0.8
+        params.explosiveness = 1.0
+    else:
+        # Default particle effect
+        params.amount = 100
+        params.lifetime = 1.0
+        params.explosiveness = 0.5
 
     return ParticleEffectResponse(
         effect_type=request.effect_type,
