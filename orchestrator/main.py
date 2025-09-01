@@ -5,6 +5,8 @@ from .hints import HintRequest, Hint
 from .physics_ai import PhysicsQueryRequest, PhysicsQueryResponse, process_physics_query
 from .animation_ai import AnimationRequest, AnimationResponse, process_animation_request
 from .particles_ai import ParticleEffectRequest, ParticleEffectResponse, process_particle_effect_request
+from .rocco_ai import HighLevelGoal, WorldState, orchestrate_goal, execute_command_sequence, AIResponse
+from typing import List
 import uuid
 
 app = FastAPI()
@@ -89,3 +91,19 @@ async def generate_particle_effect(request: ParticleEffectRequest):
     Receives a particle effect request and passes it to the Particles AI for processing.
     """
     return process_particle_effect_request(request)
+
+@app.post("/trigger_rocco_goal", response_model=List[AIResponse])
+async def trigger_rocco_goal(goal: HighLevelGoal):
+    """
+    Triggers the Rocco AI to orchestrate a high-level goal.
+    """
+    # For now, we'll use a default world state.
+    world_state = WorldState()
+
+    # 1. Rocco generates a sequence of commands based on the goal
+    commands = orchestrate_goal(goal, world_state)
+
+    # 2. Rocco executes the commands and gets responses
+    responses = execute_command_sequence(commands)
+
+    return responses

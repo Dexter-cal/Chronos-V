@@ -13,8 +13,9 @@ class PhysicsQueryResponse(BaseModel):
     Represents a response from the Physics AI to a physics query.
     """
     query_type: str
-    result: Any
+    data: Any
     success: bool = True
+    status: str # "success" or "failure"
 
 class Vector3(BaseModel):
     """
@@ -61,15 +62,21 @@ def process_physics_query(request: PhysicsQueryRequest) -> PhysicsQueryResponse:
         end = Vector3(**request.parameters["end"])
         result = [start, end]
 
+    elif request.query_type == "validate_quest_physics":
+        # Placeholder logic: always return True
+        result = True
+
     else:
         return PhysicsQueryResponse(
             query_type=request.query_type,
-            result={"error": "Unknown query type"},
-            success=False
+            data={"error": "Unknown query type"},
+            success=False,
+            status="failure"
         )
 
     return PhysicsQueryResponse(
         query_type=request.query_type,
-        result=result,
-        success=True
+        data=result,
+        success=True,
+        status="success"
     )
