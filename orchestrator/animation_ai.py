@@ -31,37 +31,54 @@ class AnimationResponse(BaseModel):
     visemes: List[Viseme]
     animation_triggers: List[AnimationTrigger]
 
-# Placeholder for the core logic of the Animation AI
+# --- Rule-Based Animation Logic ---
+
+def _generate_visemes_from_text(text: str) -> List[Viseme]:
+    """
+    Generates a simple, placeholder sequence of visemes based on the length of the text.
+    """
+    visemes = [Viseme(viseme_name="sil", timestamp=0.0)]
+    if not text:
+        return visemes
+
+    duration = len(text) * 0.1  # Assume 0.1 seconds per character
+    num_visemes = int(duration / 0.2)
+    viseme_options = ["A", "E", "I", "O", "U"]
+
+    for i in range(num_visemes):
+        timestamp = (i + 1) * 0.2
+        viseme_name = viseme_options[i % len(viseme_options)]
+        visemes.append(Viseme(viseme_name=viseme_name, timestamp=timestamp))
+
+    visemes.append(Viseme(viseme_name="sil", timestamp=duration + 0.2))
+    return visemes
+
+def _get_animation_triggers(emotional_context: str, narrative_context: str) -> List[AnimationTrigger]:
+    """
+    Generates animation triggers based on the emotional and narrative context.
+    """
+    animation_triggers = []
+    if "greeting" in narrative_context:
+        animation_triggers.append(AnimationTrigger(animation_name="wave", timestamp=0.1))
+
+    if emotional_context == "happy":
+        animation_triggers.append(AnimationTrigger(animation_name="smile", timestamp=0.2))
+    elif emotional_context == "sad":
+        animation_triggers.append(AnimationTrigger(animation_name="slump_shoulders", timestamp=0.5))
+    elif emotional_context == "angry":
+        animation_triggers.append(AnimationTrigger(animation_name="shake_fist", timestamp=0.3))
+
+    return animation_triggers
+
+# --- Core Animation AI Logic ---
 def process_animation_request(request: AnimationRequest) -> AnimationResponse:
     """
-    Processes an animation request and returns a placeholder response.
+    Processes an animation request using simple, rule-based logic.
     """
     print(f"Received animation request: {request}")
 
-    # In a real implementation, this would use ML models to generate visemes and animations.
-    # For now, we'll return placeholder data based on the context.
-
-    visemes = []
-    animation_triggers = []
-
-    if "greeting" in request.narrative_context:
-        # Placeholder for a greeting animation
-        visemes = [
-            Viseme(viseme_name="sil", timestamp=0.0),
-            Viseme(viseme_name="E", timestamp=0.2),
-            Viseme(viseme_name="O", timestamp=0.5),
-            Viseme(viseme_name="sil", timestamp=1.0),
-        ]
-        animation_triggers = [
-            AnimationTrigger(animation_name="wave", timestamp=0.1)
-        ]
-    else:
-        # Default placeholder animation
-        visemes = [
-            Viseme(viseme_name="sil", timestamp=0.0),
-            Viseme(viseme_name="A", timestamp=0.3),
-            Viseme(viseme_name="sil", timestamp=0.8),
-        ]
+    visemes = _generate_visemes_from_text(request.text)
+    animation_triggers = _get_animation_triggers(request.emotional_context, request.narrative_context)
 
     return AnimationResponse(
         visemes=visemes,
