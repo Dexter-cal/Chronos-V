@@ -4,6 +4,7 @@ from .difficulty import PlayerEvent, DifficultySettings
 from .hints import HintRequest, Hint
 from .physics_ai import PhysicsQueryRequest, PhysicsQueryResponse, process_physics_query
 from .animation_ai import AnimationRequest, AnimationResponse, process_animation_request
+from .particles_ai import ParticleEffectRequest, ParticleEffectResponse, process_particle_effect_request
 import uuid
 
 app = FastAPI()
@@ -81,3 +82,10 @@ async def generate_animation(request: AnimationRequest):
     Receives an animation request and passes it to the Animation AI for processing.
     """
     return process_animation_request(request)
+
+@app.post("/generate_particle_effect", response_model=ParticleEffectResponse)
+async def generate_particle_effect(request: ParticleEffectRequest):
+    """
+    Receives a particle effect request and passes it to the Particles AI for processing.
+    """
+    return process_particle_effect_request(request)
