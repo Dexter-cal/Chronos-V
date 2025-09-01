@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://b1x2y3q4w5e6f"]
+
+[ext_resource type="Script" path="res://Main.gd" id="1_a1b2c"]
+[ext_resource type="PackedScene" uid="uid://c6g2w3q1x4y5f" path="res://PauseMenu.tscn" id="2_d3e4f"]
+
+[node name="Main" type="Node"]
+script = ExtResource("1_a1b2c")
+
+[node name="PauseMenu" parent="." instance=ExtResource("2_d3e4f")]
+visible = false
