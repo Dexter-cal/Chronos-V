@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from .puzzles import Puzzle
 from .difficulty import PlayerEvent, DifficultySettings
 from .hints import HintRequest, Hint
+from .physics_ai import PhysicsQueryRequest, PhysicsQueryResponse, process_physics_query
 import uuid
 
 app = FastAPI()
@@ -65,3 +66,10 @@ async def get_hint(request: HintRequest):
         hint_type="text"
     )
     return hint
+
+@app.post("/physics_query", response_model=PhysicsQueryResponse)
+async def physics_query(request: PhysicsQueryRequest):
+    """
+    Receives a physics query and passes it to the Physics AI for processing.
+    """
+    return process_physics_query(request)
