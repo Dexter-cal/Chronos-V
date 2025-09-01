@@ -6,6 +6,7 @@ from .physics_ai import PhysicsQueryRequest, PhysicsQueryResponse, process_physi
 from .animation_ai import AnimationRequest, AnimationResponse, process_animation_request
 from .particles_ai import ParticleEffectRequest, ParticleEffectResponse, process_particle_effect_request
 from .rocco_ai import HighLevelGoal, WorldState, orchestrate_goal, execute_command_sequence, AIResponse
+from .map_location_ai import MapDataRequest, MapData, generate_map_data
 from typing import List
 import uuid
 
@@ -107,3 +108,10 @@ async def trigger_rocco_goal(goal: HighLevelGoal):
     responses = execute_command_sequence(commands)
 
     return responses
+
+@app.post("/get_map_data", response_model=MapData)
+async def get_map_data(request: MapDataRequest):
+    """
+    Receives a request for map data and passes it to the Map & Location AI for processing.
+    """
+    return generate_map_data(request)
