@@ -18,3 +18,27 @@ def process_world_builder_request(request: WorldBuilderRequest) -> WorldBuilderR
     if request.request_type == "verify_or_create_location":
         return WorldBuilderResponse(status="success", data={"location_id": "dungeon_01", "status": "created"})
     return WorldBuilderResponse(status="failure", data={"error": "Unknown request type"})
+
+import random
+
+def generate_basic_map(width: int, height: int) -> list[list[str]]:
+    """
+    Generates a simple 2D map with basic terrain.
+    '~' = water
+    '.' = plains
+    '^' = mountain
+    """
+    terrain = ['~', '.', '^']
+    # Add more plains than other types to make it look more natural
+    weights = [0.1, 0.8, 0.1]
+
+    game_map = []
+    for y in range(height):
+        row = []
+        for x in range(width):
+            # Choose a terrain type based on the weights
+            chosen_terrain = random.choices(terrain, weights)[0]
+            row.append(chosen_terrain)
+        game_map.append(row)
+
+    return game_map
