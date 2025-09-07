@@ -1,12 +1,27 @@
-# React + Vite
+# Chrono Hub Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This directory contains the source code for the Chrono Hub, the main user-facing application for the Chrono Verse ecosystem.
 
-Currently, two official plugins are available:
+## Purpose
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+The Chrono Hub is intended to be the central portal for players. It will feature:
+- A library of all available and installed games built with the Chrono Verse engine.
+- A marketplace for trading in-game assets, skins, and other user-generated content.
+- Player profiles and social features.
 
-## Expanding the ESLint configuration
+This project was bootstrapped with [Vite](https://vitejs.dev/) and uses [React](https://reactjs.org/).
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Setup
+
+To install the necessary dependencies, run the following command from the root of this `frontend` directory:
+```bash
+npm install
+```
+
+## ⚠️ Known Environment Issue
+
+**Important:** The current execution environment has a critical issue with its `npm` installation. The `npm install` command completes but **fails to create the necessary binary links** in the `node_modules/.bin` directory.
+
+This means that standard `npm` scripts like `npm run dev` or `npm run build` will fail with a `vite: not found` error.
+
+Due to this issue, the application cannot currently be run or tested in this environment. The source code has been committed to save progress, but it is unverified.
