@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 from .puzzles import Puzzle
 from .difficulty import PlayerEvent, DifficultySettings
 from .hints import HintRequest, Hint
@@ -9,6 +10,7 @@ from .rocco_ai import HighLevelGoal, WorldState, orchestrate_goal, execute_comma
 from .map_location_ai import MapDataRequest, MapData, generate_map_data
 from .npc_ai import DialogueRequest, DialogueResponse, generate_dialogue
 from .quest_ai import Quest, generate_quest
+from . import quest_manager
 from typing import List
 import uuid
 
@@ -128,6 +130,35 @@ async def generate_dialogue_endpoint(request: DialogueRequest):
 @app.post("/quests/generate", response_model=Quest)
 async def generate_quest_endpoint(player_level: int = 1):
     """
-    Generates a new procedural quest.
+    Generates a new procedural quest and adds it to the quest manager.
     """
-    return generate_quest(player_level)
+    new_quest = generate_quest(player_level)
+    quest_manager.add_quest(new_quest)
+    return new_quest
+
+@app.get("/quests/{quest_id}", response_model=Quest)
+async def get_quest_status_endpoint(quest_id: str):
+    quest = quest_manager.get_quest_status(quest_id)
+    if not quest:
+        raise HTTPException(status_code=404, detail="Quest not found")
+    return quest
+
+@app.post("/quests/{quest_id}/accept", response_model=Quest)
+async def accept_quest_endpoint(quest_id: str):
+    quest = quest_manager.accept_quest(quest_id)
+    if not quest:
+        raise HTTPException(status_code=404, detail="Quest not found or cannot be accepted.")
+    return quest
+
+class ObjectiveProgressRequest(BaseModel):
+    objective_id: str
+    progress_amount: int
+
+@app.post("/quests/{quest_id}/progress", response_model=Quest)
+async def update_quest_progress_endpoint(quest_id: str, progress: ObjectiveProgressRequest):
+    quest = quest_manager.update_objective_progress(
+        quest_id, progress.objective_id, progress.progress_amount
+    )
+    if not quest:
+        raise HTTPException(status_code=404, detail="Quest not found or not in progress.")
+    return quest
