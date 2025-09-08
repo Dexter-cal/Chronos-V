@@ -7,6 +7,7 @@ from .animation_ai import AnimationRequest, AnimationResponse, process_animation
 from .particles_ai import ParticleEffectRequest, ParticleEffectResponse, process_particle_effect_request
 from .rocco_ai import HighLevelGoal, WorldState, orchestrate_goal, execute_command_sequence, AIResponse
 from .map_location_ai import MapDataRequest, MapData, generate_map_data
+from .npc_ai import DialogueRequest, DialogueResponse, generate_dialogue
 from typing import List
 import uuid
 
@@ -115,3 +116,10 @@ async def get_map_data(request: MapDataRequest):
     Receives a request for map data and passes it to the Map & Location AI for processing.
     """
     return generate_map_data(request)
+
+@app.post("/generate_dialogue", response_model=DialogueResponse)
+async def generate_dialogue_endpoint(request: DialogueRequest):
+    """
+    Receives a player prompt and returns a generated NPC dialogue response.
+    """
+    return generate_dialogue(request)
