@@ -8,6 +8,7 @@ from .particles_ai import ParticleEffectRequest, ParticleEffectResponse, process
 from .rocco_ai import HighLevelGoal, WorldState, orchestrate_goal, execute_command_sequence, AIResponse
 from .map_location_ai import MapDataRequest, MapData, generate_map_data
 from .npc_ai import DialogueRequest, DialogueResponse, generate_dialogue
+from .quest_ai import Quest, generate_quest
 from typing import List
 import uuid
 
@@ -123,3 +124,10 @@ async def generate_dialogue_endpoint(request: DialogueRequest):
     Receives a player prompt and returns a generated NPC dialogue response.
     """
     return generate_dialogue(request)
+
+@app.post("/quests/generate", response_model=Quest)
+async def generate_quest_endpoint(player_level: int = 1):
+    """
+    Generates a new procedural quest.
+    """
+    return generate_quest(player_level)
