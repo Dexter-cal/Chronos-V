@@ -1,9 +1,10 @@
 from pydantic import BaseModel
-from typing import Dict, Any, Type
+from typing import Dict, Any, Type, Optional
 from enum import Enum
 import abc
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from .shared_models import GameTheme
 
 # --- Request/Response Models ---
 
@@ -15,6 +16,7 @@ class DialogueRequest(BaseModel):
     npc_id: str
     player_prompt: str
     strategy: DialogueStrategyType = DialogueStrategyType.RULE_BASED
+    theme: Optional[GameTheme] = None
 
 class DialogueResponse(BaseModel):
     npc_response: str
@@ -28,58 +30,66 @@ class DialogueStrategy(abc.ABC):
         pass
 
 class RuleBasedStrategy(DialogueStrategy):
-    """Generates dialogue based on simple keyword matching."""
+    """Generates dialogue based on simple keyword matching, aware of the theme."""
     def generate(self, request: DialogueRequest) -> DialogueResponse:
         prompt = request.player_prompt.lower()
 
+        # Default greeting
+        greeting = "Greetings, traveler."
+        if request.theme and "sci-fi" in request.theme.prompt.lower():
+            greeting = "State your purpose, organic."
+
         if "hello" in prompt or "hi" in prompt:
-            response_text = "Greetings, traveler."
+            response_text = greeting
         elif "quest" in prompt:
             response_text = "I may have a task for you. Are you brave enough?"
         elif "bye" in prompt:
             response_text = "Farewell."
         else:
-            response_text = "I don't understand."
+            response_text = "Your words are noise to me."
 
         return DialogueResponse(npc_response=response_text)
 
 class LLMStrategy(DialogueStrategy):
     """A strategy that uses a pre-trained conversational model from Hugging Face."""
 
-    # Cache the model and tokenizer so they are not reloaded on every request.
     _model = None
     _tokenizer = None
-    _chat_history_ids = None
+    _chat_history = None
 
     def __init__(self):
         if LLMStrategy._model is None or LLMStrategy._tokenizer is None:
-            print("LLMStrategy: Loading DialoGPT-medium model and tokenizer for the first time...")
+            print("LLMStrategy: Loading DialoGPT-medium model and tokenizer...")
             model_name = "microsoft/DialoGPT-medium"
             LLMStrategy._tokenizer = AutoTokenizer.from_pretrained(model_name)
             LLMStrategy._model = AutoModelForCausalLM.from_pretrained(model_name)
             print("LLMStrategy: Model and tokenizer loaded.")
 
     def generate(self, request: DialogueRequest) -> DialogueResponse:
-        prompt = request.player_prompt
+        # Prepend a system prompt based on the theme to guide the LLM
+        system_prompt = ""
+        if request.theme:
+            system_prompt = f"System: You are an NPC in a '{request.theme.setting or 'fantasy'}' world with a '{request.theme.tone or 'neutral'}' tone. The theme is '{request.theme.prompt}'. "
 
-        # 1. Encode the new user input, add the eos_token and return a tensor in PyTorch
-        new_user_input_ids = self._tokenizer.encode(prompt + self._tokenizer.eos_token, return_tensors='pt')
+        full_prompt = system_prompt + request.player_prompt
 
-        # 2. Append the new user input tokens to the chat history
-        bot_input_ids = torch.cat([self._chat_history_ids, new_user_input_ids], dim=-1) if self._chat_history_ids is not None else new_user_input_ids
+        new_input_ids = self._tokenizer.encode(full_prompt + self._tokenizer.eos_token, return_tensors='pt')
 
-        # 3. Generate a response while limiting the total chat history to 1000 tokens
-        self._chat_history_ids = self._model.generate(
+        # For simplicity, we'll keep a short history. A real implementation would manage this per-conversation.
+        bot_input_ids = torch.cat([self._chat_history, new_input_ids], dim=-1) if self._chat_history is not None else new_input_ids
+
+        chat_history_ids = self._model.generate(
             bot_input_ids,
             max_length=1000,
             pad_token_id=self._tokenizer.eos_token_id
         )
 
-        # 4. Decode the last bot reply and return it
-        response_text = self._tokenizer.decode(self._chat_history_ids[:, bot_input_ids.shape[-1]:][0], skip_special_tokens=True)
+        self._chat_history = chat_history_ids
+
+        response_text = self._tokenizer.decode(chat_history_ids[:, bot_input_ids.shape[-1]:][0], skip_special_tokens=True)
 
         if not response_text:
-            response_text = "I... I don't know what to say."
+            response_text = "..."
 
         return DialogueResponse(npc_response=response_text)
 

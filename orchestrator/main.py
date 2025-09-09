@@ -11,6 +11,7 @@ from .map_location_ai import MapDataRequest, MapData, generate_map_data
 from .npc_ai import DialogueRequest, DialogueResponse, generate_dialogue
 from .quest_ai import Quest, generate_quest
 from . import quest_manager
+from .genesis_ai import GameTheme, CoordinatedWorldOutput, coordinate_generation
 from typing import List
 import uuid
 
@@ -162,3 +163,11 @@ async def update_quest_progress_endpoint(quest_id: str, progress: ObjectiveProgr
     if not quest:
         raise HTTPException(status_code=404, detail="Quest not found or not in progress.")
     return quest
+
+@app.post("/genesis/create_world", response_model=CoordinatedWorldOutput)
+async def create_world_endpoint(theme: GameTheme):
+    """
+    Takes a high-level game theme and orchestrates all AI services
+    to generate a consistent game world.
+    """
+    return coordinate_generation(theme)

@@ -1,8 +1,10 @@
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from enum import Enum
 import uuid
 import random
+
+from .shared_models import GameTheme
 
 class QuestStatus(str, Enum):
     NOT_STARTED = "NOT_STARTED"
@@ -36,17 +38,37 @@ class Quest(BaseModel):
     objectives: List[QuestObjective]
     rewards: QuestReward
 
-def generate_quest(player_level: int = 1) -> Quest:
+def generate_quest(player_level: int = 1, theme: Optional[GameTheme] = None) -> Quest:
     """
-    Generates a new procedural quest based on player level.
+    Generates a new procedural quest based on player level and a given theme.
     """
+    # --- Thematic Content ---
+    fantasy_items = ["Glimmering Shard", "Wolf Pelt", "Ancient Herb", "Spider Silk"]
+    fantasy_enemies = ["Dire Wolf", "Giant Spider", "Goblin Scout", "Forest Bandit"]
+
+    scifi_items = ["Scrap Metal", "Power Cell", "Alien Artifact", "Datachip"]
+    scifi_enemies = ["Rogue Drone", "Mutated Scavenger", "Security Bot", "Alien Grunt"]
+
+    # Default to fantasy if no theme is provided
+    item_pool = fantasy_items
+    enemy_pool = fantasy_enemies
+
+    if theme:
+        # A simple logic to select content based on theme prompt or setting
+        theme_prompt_lower = theme.prompt.lower()
+        if "sci-fi" in theme_prompt_lower or "science fiction" in theme_prompt_lower or theme.setting == "sci-fi":
+            item_pool = scifi_items
+            enemy_pool = scifi_enemies
+        # Can add more themes like "post-apocalyptic", "cyberpunk" etc.
+
+    # --- Quest Generation ---
     quest_type = random.choice([ObjectiveType.FETCH, ObjectiveType.KILL])
 
     if quest_type == ObjectiveType.FETCH:
-        item_name = random.choice(["Glimmering Shard", "Wolf Pelt", "Ancient Herb", "Spider Silk"])
+        item_name = random.choice(item_pool)
         amount = random.randint(3, 8)
         title = f"A Collector's Task"
-        description = f"A local merchant needs {amount} {item_name}s. They say they can be found in the nearby forest."
+        description = f"A local contact needs {amount} {item_name}s for their work."
         objective = QuestObjective(
             objective_id=str(uuid.uuid4()),
             description=f"Collect {amount} {item_name}s.",
@@ -56,13 +78,13 @@ def generate_quest(player_level: int = 1) -> Quest:
         )
 
     elif quest_type == ObjectiveType.KILL:
-        enemy_name = random.choice(["Dire Wolf", "Giant Spider", "Goblin Scout", "Forest Bandit"])
+        enemy_name = random.choice(enemy_pool)
         amount = random.randint(2, 5)
         title = f"A Menace to be Dealt With"
-        description = f"The area has been plagued by {enemy_name}s. Someone needs to thin their numbers."
+        description = f"The area has been compromised by {enemy_name}s. They need to be cleared out."
         objective = QuestObjective(
             objective_id=str(uuid.uuid4()),
-            description=f"Defeat {amount} {enemy_name}s.",
+            description=f"Eliminate {amount} {enemy_name}s.",
             type=ObjectiveType.KILL,
             target=enemy_name,
             required_amount=amount
