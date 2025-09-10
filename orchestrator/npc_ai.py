@@ -5,6 +5,7 @@ import abc
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from .shared_models import GameTheme
+from .safety_ai import is_content_safe
 
 # --- Request/Response Models ---
 
@@ -90,6 +91,11 @@ class LLMStrategy(DialogueStrategy):
 
         if not response_text:
             response_text = "..."
+
+        # --- AI Safety Check ---
+        if not is_content_safe(response_text):
+            print(f"LLMStrategy: Unsafe content detected. Original response: '{response_text}'")
+            response_text = "I am not able to discuss such things."
 
         return DialogueResponse(npc_response=response_text)
 

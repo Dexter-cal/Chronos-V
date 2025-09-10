@@ -4,3 +4,4 @@ numpy
 noise
 transformers
 torch
+alt-profanity-check
