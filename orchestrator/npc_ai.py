@@ -2,8 +2,7 @@ from pydantic import BaseModel
 from typing import Dict, Any, Type, Optional
 from enum import Enum
 import abc
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import pipeline
 from .shared_models import GameTheme
 from .safety_ai import is_content_safe
 
@@ -14,7 +13,7 @@ class DialogueStrategyType(str, Enum):
     LLM = "LLM"
 
 class DialogueRequest(BaseModel):
-    npc_id: str
+    npc_id: str # Kept for API consistency, though not used by stateless LLM
     player_prompt: str
     strategy: DialogueStrategyType = DialogueStrategyType.RULE_BASED
     theme: Optional[GameTheme] = None
@@ -35,7 +34,6 @@ class RuleBasedStrategy(DialogueStrategy):
     def generate(self, request: DialogueRequest) -> DialogueResponse:
         prompt = request.player_prompt.lower()
 
-        # Default greeting
         greeting = "Greetings, traveler."
         if request.theme and "sci-fi" in request.theme.prompt.lower():
             greeting = "State your purpose, organic."
@@ -52,45 +50,30 @@ class RuleBasedStrategy(DialogueStrategy):
         return DialogueResponse(npc_response=response_text)
 
 class LLMStrategy(DialogueStrategy):
-    """A strategy that uses a pre-trained conversational model from Hugging Face."""
+    """A stateless strategy that uses a pre-trained model for generation."""
 
-    _model = None
-    _tokenizer = None
-    _chat_history = None
+    _pipeline = None
 
     def __init__(self):
-        if LLMStrategy._model is None or LLMStrategy._tokenizer is None:
-            print("LLMStrategy: Loading DialoGPT-medium model and tokenizer...")
-            model_name = "microsoft/DialoGPT-medium"
-            LLMStrategy._tokenizer = AutoTokenizer.from_pretrained(model_name)
-            LLMStrategy._model = AutoModelForCausalLM.from_pretrained(model_name)
-            print("LLMStrategy: Model and tokenizer loaded.")
+        if LLMStrategy._pipeline is None:
+            print("LLMStrategy: Initializing text-generation pipeline...")
+            # Using a simpler pipeline task for stateless generation
+            LLMStrategy._pipeline = pipeline("text-generation", model="microsoft/DialoGPT-medium")
+            print("LLMStrategy: Pipeline initialized.")
 
     def generate(self, request: DialogueRequest) -> DialogueResponse:
-        # Prepend a system prompt based on the theme to guide the LLM
-        system_prompt = ""
+        # Construct a prompt with theme context
+        full_prompt = request.player_prompt
         if request.theme:
-            system_prompt = f"System: You are an NPC in a '{request.theme.setting or 'fantasy'}' world with a '{request.theme.tone or 'neutral'}' tone. The theme is '{request.theme.prompt}'. "
+            system_prompt = f"In a '{request.theme.setting or 'fantasy'}' world with a '{request.theme.tone or 'neutral'}' tone, a character is asked: '{request.player_prompt}'. They reply: "
+            full_prompt = system_prompt
 
-        full_prompt = system_prompt + request.player_prompt
-
-        new_input_ids = self._tokenizer.encode(full_prompt + self._tokenizer.eos_token, return_tensors='pt')
-
-        # For simplicity, we'll keep a short history. A real implementation would manage this per-conversation.
-        bot_input_ids = torch.cat([self._chat_history, new_input_ids], dim=-1) if self._chat_history is not None else new_input_ids
-
-        chat_history_ids = self._model.generate(
-            bot_input_ids,
-            max_length=1000,
-            pad_token_id=self._tokenizer.eos_token_id
-        )
-
-        self._chat_history = chat_history_ids
-
-        response_text = self._tokenizer.decode(chat_history_ids[:, bot_input_ids.shape[-1]:][0], skip_special_tokens=True)
+        # Generate a response. Using text-generation is stateless.
+        generated_outputs = self._pipeline(full_prompt, max_length=60, num_return_sequences=1, pad_token_id=50256)
+        response_text = generated_outputs[0]['generated_text'].replace(full_prompt, "").strip()
 
         if not response_text:
-            response_text = "..."
+            response_text = "I am unsure how to respond."
 
         # --- AI Safety Check ---
         if not is_content_safe(response_text):
