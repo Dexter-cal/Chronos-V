@@ -5,6 +5,7 @@ import uuid
 import random
 from .shared_models import GameTheme
 from .content_generator_ai import generate_themed_list
+from .difficulty import DifficultySettings
 
 class QuestStatus(str, Enum):
     NOT_STARTED = "NOT_STARTED"
@@ -38,14 +39,16 @@ class Quest(BaseModel):
     objectives: List[QuestObjective]
     rewards: QuestReward
 
-def generate_quest(player_level: int = 1, theme: Optional[GameTheme] = None) -> Quest:
+def generate_quest(player_level: int = 1, theme: Optional[GameTheme] = None, difficulty: Optional[DifficultySettings] = None) -> Quest:
     """
-    Generates a new procedural quest based on player level and a given theme,
-    using an AI content generator for thematic elements.
+    Generates a new procedural quest based on player level, a given theme,
+    and current difficulty settings.
     """
-    # If no theme is provided, create a default one for generic fantasy
+    # If no theme/difficulty is provided, create default ones
     if not theme:
         theme = GameTheme(prompt="A classic fantasy world with monsters and magic.", setting="fantasy")
+    if not difficulty:
+        difficulty = DifficultySettings()
 
     # --- Quest Generation ---
     quest_type = random.choice([ObjectiveType.FETCH, ObjectiveType.KILL])
@@ -54,7 +57,11 @@ def generate_quest(player_level: int = 1, theme: Optional[GameTheme] = None) -> 
         # Dynamically generate item names based on the theme
         item_pool = generate_themed_list(theme, "collectible items", count=5)
         item_name = random.choice(item_pool)
-        amount = random.randint(3, 8)
+        # Scale amount by difficulty
+        base_amount = random.randint(3, 8)
+        amount = int(base_amount * difficulty.item_requirement_multiplier)
+        amount = max(1, amount) # Ensure at least 1 is required
+
         title = f"A Collector's Task: {item_name}"
         description = f"A local contact needs {amount} {item_name}(s) for their work."
         objective = QuestObjective(
@@ -69,7 +76,11 @@ def generate_quest(player_level: int = 1, theme: Optional[GameTheme] = None) -> 
         # Dynamically generate enemy names based on the theme
         enemy_pool = generate_themed_list(theme, "common enemy types", count=5)
         enemy_name = random.choice(enemy_pool)
-        amount = random.randint(2, 5)
+        # Scale amount by difficulty
+        base_amount = random.randint(2, 5)
+        amount = int(base_amount * difficulty.enemy_count_multiplier)
+        amount = max(1, amount) # Ensure at least 1 is required
+
         title = f"A Menace to be Dealt With: {enemy_name}s"
         description = f"The area has been compromised by {enemy_name}s. They need to be cleared out."
         objective = QuestObjective(
@@ -80,9 +91,11 @@ def generate_quest(player_level: int = 1, theme: Optional[GameTheme] = None) -> 
             required_amount=amount
         )
 
-    # Generate rewards based on player level and quest difficulty
-    xp_reward = player_level * 50 + random.randint(10, 25)
-    gold_reward = player_level * 20 + random.randint(5, 15)
+    # Generate and scale rewards
+    base_xp = player_level * 50 + random.randint(10, 25)
+    base_gold = player_level * 20 + random.randint(5, 15)
+    xp_reward = int(base_xp * difficulty.quest_reward_multiplier)
+    gold_reward = int(base_gold * difficulty.quest_reward_multiplier)
 
     quest = Quest(
         quest_id=str(uuid.uuid4()),

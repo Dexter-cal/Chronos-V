@@ -12,6 +12,7 @@ from .npc_ai import DialogueRequest, DialogueResponse, generate_dialogue
 from .quest_ai import Quest, generate_quest
 from . import quest_manager
 from .genesis_ai import GameTheme, CoordinatedWorldOutput, coordinate_generation
+from .difficulty import adjust_difficulty
 from typing import List
 import uuid
 
@@ -48,13 +49,17 @@ async def generate_puzzle(context: dict):
 @app.post("/player_event")
 async def player_event(event: PlayerEvent):
     """
-    Receives a player event and stores it.
-    In a real application, this would trigger the difficulty adjustment logic.
+    Receives a player event, stores it, and triggers the difficulty adjustment logic.
     """
+    global current_difficulty_settings
     print(f"Received player event: {event}")
     player_events.append(event)
-    # Here you would add logic to analyze events and adjust difficulty
-    return {"status": "event received"}
+
+    # Keep a sliding window of the last 10 events for adjustment
+    recent_events = player_events[-10:]
+    current_difficulty_settings = adjust_difficulty(recent_events, current_difficulty_settings)
+
+    return {"status": "event received", "new_difficulty_level": current_difficulty_settings.difficulty_level}
 
 @app.get("/difficulty_settings", response_model=DifficultySettings)
 async def get_difficulty_settings():
@@ -131,9 +136,9 @@ async def generate_dialogue_endpoint(request: DialogueRequest):
 @app.post("/quests/generate", response_model=Quest)
 async def generate_quest_endpoint(player_level: int = 1):
     """
-    Generates a new procedural quest and adds it to the quest manager.
+    Generates a new procedural quest, scaled by current difficulty, and adds it to the quest manager.
     """
-    new_quest = generate_quest(player_level)
+    new_quest = generate_quest(player_level=player_level, difficulty=current_difficulty_settings)
     quest_manager.add_quest(new_quest)
     return new_quest
 
