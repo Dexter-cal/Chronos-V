@@ -13,6 +13,7 @@ from .quest_ai import Quest, generate_quest
 from . import quest_manager
 from .genesis_ai import GameTheme, CoordinatedWorldOutput, coordinate_generation
 from .difficulty import adjust_difficulty
+from .referee_ai import ModerationVerdict, analyze_player_chat
 from typing import List
 import uuid
 
@@ -49,17 +50,13 @@ async def generate_puzzle(context: dict):
 @app.post("/player_event")
 async def player_event(event: PlayerEvent):
     """
-    Receives a player event, stores it, and triggers the difficulty adjustment logic.
+    Receives a player event and stores it.
+    In a real application, this would trigger the difficulty adjustment logic.
     """
-    global current_difficulty_settings
     print(f"Received player event: {event}")
     player_events.append(event)
-
-    # Keep a sliding window of the last 10 events for adjustment
-    recent_events = player_events[-10:]
-    current_difficulty_settings = adjust_difficulty(recent_events, current_difficulty_settings)
-
-    return {"status": "event received", "new_difficulty_level": current_difficulty_settings.difficulty_level}
+    # Here you would add logic to analyze events and adjust difficulty
+    return {"status": "event received"}
 
 @app.get("/difficulty_settings", response_model=DifficultySettings)
 async def get_difficulty_settings():
@@ -176,3 +173,13 @@ async def create_world_endpoint(theme: GameTheme):
     to generate a consistent game world.
     """
     return coordinate_generation(theme)
+
+class ChatMessage(BaseModel):
+    message: str
+
+@app.post("/referee/analyze_chat", response_model=ModerationVerdict)
+async def analyze_chat_endpoint(chat_message: ChatMessage):
+    """
+    Analyzes a player chat message for toxicity and returns a verdict.
+    """
+    return analyze_player_chat(chat_message.message)
