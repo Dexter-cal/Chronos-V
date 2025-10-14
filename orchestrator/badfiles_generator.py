@@ -58,30 +58,14 @@ def create_archive_with_traversal(filename="traversal.zip", file_to_create="test
         zf.writestr(traversal_path, "evil content")
     print(f"Generated zip file with path traversal: {filename}")
 
-def create_compressed_archive_bomb(filename="bomb.zip", size=10, level=1):
+def create_compressed_archive_bomb(filename="bomb.zip", num_files=100, content_size=1024*10):
     """
-    Creates a recursive zip bomb.
+    Creates a zip file with a high compression ratio.
     """
-    if level == 0:
-        return
-
-    zf = zipfile.ZipFile(f'level_{level}.zip', 'w', zipfile.ZIP_DEFLATED)
-    for i in range(size):
-        zf.writestr(f'file_{i}.txt', b'0' * 1024)
-    zf.close()
-
-    if level > 1:
-        parent_zf = zipfile.ZipFile(f'level_{level-1}.zip', 'w', zipfile.ZIP_DEFLATED)
-        for i in range(size):
-            parent_zf.write(f'level_{level}.zip', f'zip_{i}.zip')
-        parent_zf.close()
-        os.remove(f'level_{level}.zip')
-
-    if level > 1:
-        create_compressed_archive_bomb(size=size, level=level-1)
-    else:
-        os.rename(f'level_1.zip', filename)
-    print(f"Generated zip bomb: {filename}")
+    with zipfile.ZipFile(filename, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
+        for i in range(num_files):
+            zf.writestr(f'file_{i}.txt', b'\0' * content_size)
+    print(f"Generated compressed archive bomb: {filename}")
 
 
 def create_gzipped_bomb(filename="bomb.gz", uncompressed_size=1024*1024*10):
@@ -107,10 +91,50 @@ def generate_malicious_svg(filename="malicious.svg"):
     print(f"Generated malicious SVG file: {filename}")
 
 
+def generate_file_with_double_extension(filename="file.txt.exe"):
+    """
+    Generates a file with a misleading double extension.
+    """
+    with open(filename, "w") as f:
+        f.write("This file has a double extension.")
+    print(f"Generated file with double extension: {filename}")
+
+
+def generate_file_in_parent_directory(filename="file_in_parent.txt", depth=2):
+    """
+    Generates a file in a parent directory.
+    """
+    traversal_path = os.path.join(*([".."] * depth), filename)
+    with open(traversal_path, "w") as f:
+        f.write("This file was created in a parent directory.")
+    print(f"Generated file in parent directory: {traversal_path}")
+
+
+def generate_csv_formula_injection(filename="formula_injection.csv", command="=2+2"):
+    """
+    Generates a CSV file with a formula injection payload.
+    """
+    with open(filename, "w") as f:
+        f.write(f'"{command}",safe\n')
+    print(f"Generated CSV with formula injection: {filename}")
+
+
+def generate_gifar(filename="gifar.gif", js_payload="alert('GIFAR')"):
+    """
+    Generates a GIFAR polyglot file.
+    """
+    gif_header = b"GIF89a"
+    gif_body = b"\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b"
+    payload = gif_header + gif_body + b"/*" + js_payload.encode() + b"*/"
+    with open(filename, "wb") as f:
+        f.write(payload)
+    print(f"Generated GIFAR file: {filename}")
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Generate malicious files for testing.")
-    parser.add_argument("filetype", choices=["xxe", "billion_laughs", "quadratic_blowup", "zip_traversal", "zip_bomb", "gz_bomb", "svg"], help="Type of file to generate.")
+    parser.add_argument("filetype", choices=["xxe", "billion_laughs", "quadratic_blowup", "zip_traversal", "zip_bomb", "gz_bomb", "svg", "double_extension", "file_in_parent", "csv_injection", "gifar"], help="Type of file to generate.")
     args = parser.parse_args()
 
     if args.filetype == "xxe":
@@ -127,3 +151,11 @@ if __name__ == "__main__":
         create_gzipped_bomb()
     elif args.filetype == "svg":
         generate_malicious_svg()
+    elif args.filetype == "double_extension":
+        generate_file_with_double_extension()
+    elif args.filetype == "file_in_parent":
+        generate_file_in_parent_directory()
+    elif args.filetype == "csv_injection":
+        generate_csv_formula_injection()
+    elif args.filetype == "gifar":
+        generate_gifar()
