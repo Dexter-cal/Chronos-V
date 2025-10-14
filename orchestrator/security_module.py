@@ -433,6 +433,13 @@ def main():
     web_parser.add_argument("--output", required=True, help="Output file name.")
     web_parser.add_argument("--payload", help="Custom payload for XSS.")
 
+    # Other Payload Generator
+    other_parser = generate_subparsers.add_parser("other", help="Generate other types of payload files.")
+    other_parser.add_argument("--type", choices=["log_injection", "crlf_injection", "large_file"], required=True, help="Type of payload.")
+    other_parser.add_argument("--output", required=True, help="Output file name.")
+    other_parser.add_argument("--size-mb", type=int, default=10, help="Size in MB for the large file.")
+
+    # Add arguments to the decode_parser
     decode_parser.add_argument("--key")
     decode_parser.add_argument("--encrypt-method", default="fernet", choices=["fernet", "aes"])
     decode_parser.add_argument("--compress", action="store_true")
@@ -524,11 +531,21 @@ def main():
                 badfiles_generator.generate_python_reverse_shell(args.output, args.host, args.port)
         elif args.file_type == "web":
             if args.type == "xss":
-                badfiles_generator.generate_xss_html(args.output, args.payload) if args.payload else badfiles_generator.generate_xss_html(args.output)
+                if args.payload:
+                    badfiles_generator.generate_xss_html(args.output, args.payload)
+                else:
+                    badfiles_generator.generate_xss_html(args.output)
             elif args.type == "sqli":
                 badfiles_generator.generate_sqli_payloads(args.output)
             elif args.type == "command_injection":
                 badfiles_generator.generate_command_injection_payloads(args.output)
+        elif args.file_type == "other":
+            if args.type == "log_injection":
+                badfiles_generator.generate_log_injection_payloads(args.output)
+            elif args.type == "crlf_injection":
+                badfiles_generator.generate_crlf_injection_payloads(args.output)
+            elif args.type == "large_file":
+                badfiles_generator.generate_large_file(args.output, args.size_mb)
 
 if __name__ == "__main__":
     main()
