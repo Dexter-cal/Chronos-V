@@ -389,6 +389,30 @@ def main():
     zip_parser.add_argument("--output", required=True, help="Output file name.")
     zip_parser.add_argument("--target-path", default="../../../../../../../../../etc/passwd", help="Target path for traversal.")
     zip_parser.add_argument("--content", default="hacked", help="Content of the malicious file.")
+
+    # PNG Generator
+    png_parser = generate_subparsers.add_parser("png", help="Generate a malicious PNG file.")
+    png_parser.add_argument("--type", choices=["bad_ihdr"], required=True, help="Type of PNG attack.")
+    png_parser.add_argument("--output", required=True, help="Output file name.")
+    png_parser.add_argument("--width", type=int, default=1, help="Width of the image.")
+    png_parser.add_argument("--height", type=int, default=1, help="Height of the image.")
+
+    # Upload Generator
+    upload_parser = generate_subparsers.add_parser("upload", help="Generate a malicious file for upload.")
+    upload_parser.add_argument("--type", choices=["null_byte", "polyglot_jpeg_php"], required=True, help="Type of upload attack.")
+    upload_parser.add_argument("--output", required=True, help="Output file name.")
+    upload_parser.add_argument("--base-name", default="payload.php", help="Base name for null byte attack.")
+    upload_parser.add_argument("--null-byte-ext", default=".jpg", help="Extension for null byte attack.")
+    upload_parser.add_argument("--php-code", default="<?php phpinfo(); ?>", help="PHP code for polyglot attack.")
+
+    # Deserialization Generator
+    deserialization_parser = generate_subparsers.add_parser("deserialization", help="Generate a deserialization payload.")
+    deserialization_parser.add_argument("--type", choices=["php", "python"], required=True, help="Type of deserialization attack.")
+    deserialization_parser.add_argument("--output", required=True, help="Output file name for Python pickle, or 'stdout' for PHP.")
+    deserialization_parser.add_argument("--class-name", default="BenignClass", help="Class name for PHP deserialization.")
+    deserialization_parser.add_argument("--prop-name", default="name", help="Property name for PHP deserialization.")
+    deserialization_parser.add_argument("--prop-value", default="test", help="Property value for PHP deserialization.")
+
     decode_parser.add_argument("--key")
     decode_parser.add_argument("--encrypt-method", default="fernet")
     decode_parser.add_argument("--compress", action="store_true")
@@ -451,6 +475,25 @@ def main():
         elif args.file_type == "zip":
             if args.type == "traversal":
                 badfiles_generator.generate_zip_traversal(args.output, args.target_path, args.content)
+        elif args.file_type == "png":
+            if args.type == "bad_ihdr":
+                badfiles_generator.generate_bad_png(args.output, args.width, args.height)
+        elif args.file_type == "upload":
+            if args.type == "null_byte":
+                badfiles_generator.generate_null_byte_filename_concept(args.output, args.base_name, args.null_byte_ext)
+            elif args.type == "polyglot_jpeg_php":
+                badfiles_generator.generate_polyglot_jpeg_php(args.output, args.php_code)
+        elif args.file_type == "deserialization":
+            if args.type == "php":
+                content = badfiles_generator.generate_php_deserialization_concept(args.class_name, args.prop_name, args.prop_value)
+                if args.output == "stdout":
+                    print(content)
+                else:
+                    with open(args.output, "w") as f:
+                        f.write(content)
+                    logging.info(f"Generated PHP deserialization payload to: {args.output}")
+            elif args.type == "python":
+                badfiles_generator.generate_python_pickle_concept(args.output)
 
 if __name__ == "__main__":
     main()
