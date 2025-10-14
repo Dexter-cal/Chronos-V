@@ -413,6 +413,20 @@ def main():
     deserialization_parser.add_argument("--prop-name", default="name", help="Property name for PHP deserialization.")
     deserialization_parser.add_argument("--prop-value", default="test", help="Property value for PHP deserialization.")
 
+    # Document Generators
+    doc_parser = generate_subparsers.add_parser("doc", help="Generate a malicious document file.")
+    doc_parser.add_argument("--type", choices=["csv_injection", "rtf_linked_object"], required=True, help="Type of document attack.")
+    doc_parser.add_argument("--output", required=True, help="Output file name.")
+    doc_parser.add_argument("--command", default="=cmd|'/C calc.exe'!A0", help="Command for CSV injection.")
+    doc_parser.add_argument("--url", default="http://example.com/logo.gif", help="URL for RTF linked object.")
+
+    # EDR Evasion Generator
+    edr_parser = generate_subparsers.add_parser("edr", help="Generate a file for EDR testing.")
+    edr_parser.add_argument("--type", choices=["reverse_shell"], required=True, help="Type of EDR evasion.")
+    edr_parser.add_argument("--output", required=True, help="Output file name.")
+    edr_parser.add_argument("--host", default="127.0.0.1", help="Host for reverse shell.")
+    edr_parser.add_argument("--port", type=int, default=4444, help="Port for reverse shell.")
+
     decode_parser.add_argument("--key")
     decode_parser.add_argument("--encrypt-method", default="fernet")
     decode_parser.add_argument("--compress", action="store_true")
@@ -494,6 +508,14 @@ def main():
                     logging.info(f"Generated PHP deserialization payload to: {args.output}")
             elif args.type == "python":
                 badfiles_generator.generate_python_pickle_concept(args.output)
+        elif args.file_type == "doc":
+            if args.type == "csv_injection":
+                badfiles_generator.generate_csv_injection(args.output, args.command)
+            elif args.type == "rtf_linked_object":
+                badfiles_generator.generate_rtf_linked_object(args.output, args.url)
+        elif args.file_type == "edr":
+            if args.type == "reverse_shell":
+                badfiles_generator.generate_python_reverse_shell(args.output, args.host, args.port)
 
 if __name__ == "__main__":
     main()

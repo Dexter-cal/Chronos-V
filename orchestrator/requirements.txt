@@ -1,8 +1,2 @@
 fastapi
 uvicorn[standard]
-numpy
-opencv-python
-scikit-image
-cryptography
-requests
-Pillow
