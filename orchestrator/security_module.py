@@ -427,8 +427,14 @@ def main():
     edr_parser.add_argument("--host", default="127.0.0.1", help="Host for reverse shell.")
     edr_parser.add_argument("--port", type=int, default=4444, help="Port for reverse shell.")
 
+    # Web Payload Generator
+    web_parser = generate_subparsers.add_parser("web", help="Generate a web payload file.")
+    web_parser.add_argument("--type", choices=["xss", "sqli", "command_injection"], required=True, help="Type of web payload.")
+    web_parser.add_argument("--output", required=True, help="Output file name.")
+    web_parser.add_argument("--payload", help="Custom payload for XSS.")
+
     decode_parser.add_argument("--key")
-    decode_parser.add_argument("--encrypt-method", default="fernet")
+    decode_parser.add_argument("--encrypt-method", default="fernet", choices=["fernet", "aes"])
     decode_parser.add_argument("--compress", action="store_true")
     decode_parser.add_argument("--output-file")
     decode_parser.add_argument("--bits", type=int, default=1)
@@ -516,6 +522,13 @@ def main():
         elif args.file_type == "edr":
             if args.type == "reverse_shell":
                 badfiles_generator.generate_python_reverse_shell(args.output, args.host, args.port)
+        elif args.file_type == "web":
+            if args.type == "xss":
+                badfiles_generator.generate_xss_html(args.output, args.payload) if args.payload else badfiles_generator.generate_xss_html(args.output)
+            elif args.type == "sqli":
+                badfiles_generator.generate_sqli_payloads(args.output)
+            elif args.type == "command_injection":
+                badfiles_generator.generate_command_injection_payloads(args.output)
 
 if __name__ == "__main__":
     main()
