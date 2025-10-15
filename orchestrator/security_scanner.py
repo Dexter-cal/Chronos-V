@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 import zipfile
 import os
+import tarfile
 
 def scan_xml_for_xxe(filepath):
     """
@@ -112,4 +113,35 @@ def scan_xls_for_formulas(filepath):
         content = f.read()
         if formula_opcode in content:
             return True
+    return False
+
+def scan_pickle_for_rce(filepath):
+    """
+    Scans a pickle file for the REDUCE opcode, which is a sign of RCE.
+    """
+    # This heuristic looks for the REDUCE opcode ('R').
+    with open(filepath, 'rb') as f:
+        content = f.read()
+        if b'R' in content:
+            return True
+    return False
+
+def scan_tar_for_traversal(filepath):
+    """
+    Scans a tar file for path traversal attempts.
+    """
+    with tarfile.open(filepath, 'r') as tf:
+        for member in tf.getmembers():
+            if member.name.startswith("../") or os.path.isabs(member.name):
+                return True
+    return False
+
+def scan_yaml_for_deserialization(filepath):
+    """
+    Scans a YAML file for deserialization payloads.
+    """
+    with open(filepath, 'r') as f:
+        content = f.read()
+    if '!!python/object/apply' in content:
+        return True
     return False

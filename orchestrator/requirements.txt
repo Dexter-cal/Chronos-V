@@ -3,3 +3,4 @@ uvicorn[standard]
 fpdf
 python-docx
 xlwt
+PyYAML

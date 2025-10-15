@@ -51,6 +51,21 @@ class TestSecurityScanner(unittest.TestCase):
         badfiles_generator.generate_malicious_xls(filename)
         self.assertTrue(security_scanner.scan_xls_for_formulas(filename))
 
+    def test_pickle_rce_detection(self):
+        filename = "test_payload.pkl"
+        badfiles_generator.generate_pickle_payload(filename)
+        self.assertTrue(security_scanner.scan_pickle_for_rce(filename))
+
+    def test_tar_traversal_detection(self):
+        filename = "test_traversal.tar"
+        badfiles_generator.generate_tar_traversal(filename)
+        self.assertTrue(security_scanner.scan_tar_for_traversal(filename))
+
+    def test_yaml_deserialization_detection(self):
+        filename = "test_payload.yaml"
+        badfiles_generator.generate_yaml_payload(filename)
+        self.assertTrue(security_scanner.scan_yaml_for_deserialization(filename))
+
     def tearDown(self):
         # Clean up any generated files after each test
         for f in os.listdir():
