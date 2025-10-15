@@ -25,6 +25,32 @@ class TestSecurityScanner(unittest.TestCase):
         badfiles_generator.create_compressed_archive_bomb(filename)
         self.assertTrue(security_scanner.scan_zip_for_bomb(filename))
 
+    def test_json_deserialization_detection(self):
+        filename = "test_payload.json"
+        badfiles_generator.generate_json_deserialization_payload(filename)
+        self.assertTrue(security_scanner.scan_json_for_deserialization(filename))
+
+
+    def test_dde_detection(self):
+        filename = "test_dde.csv"
+        badfiles_generator.generate_dde_payload(filename)
+        self.assertTrue(security_scanner.scan_csv_for_dde(filename))
+
+    def test_pdf_zip_polyglot_detection(self):
+        filename = "test_polyglot.pdf"
+        badfiles_generator.generate_pdf_zip_polyglot(filename)
+        self.assertTrue(security_scanner.scan_for_pdf_zip_polyglot(filename))
+
+    def test_docx_link_detection(self):
+        filename = "test_malicious.docx"
+        badfiles_generator.generate_malicious_docx(filename)
+        self.assertTrue(security_scanner.scan_docx_for_links(filename))
+
+    def test_xls_formula_detection(self):
+        filename = "test_malicious.xls"
+        badfiles_generator.generate_malicious_xls(filename)
+        self.assertTrue(security_scanner.scan_xls_for_formulas(filename))
+
     def tearDown(self):
         # Clean up any generated files after each test
         for f in os.listdir():

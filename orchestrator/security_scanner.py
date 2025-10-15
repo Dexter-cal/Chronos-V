@@ -49,3 +49,67 @@ def scan_zip_for_bomb(filepath, max_ratio=10):
     if compressed_size > 0 and (total_uncompressed_size / compressed_size) > max_ratio:
         return True
     return False
+
+def scan_json_for_deserialization(filepath):
+    """
+    Scans a JSON file for keywords often used in insecure deserialization.
+    """
+    with open(filepath, 'r') as f:
+        content = f.read()
+    if '"__type__":' in content or '"object_type":' in content:
+        return True
+    return False
+
+def scan_pdf_for_js(filepath):
+    """
+    Scans a PDF file for embedded JavaScript.
+    """
+    with open(filepath, 'rb') as f:
+        content = f.read()
+    if b'/JS' in content or b'/JavaScript' in content:
+        return True
+    return False
+
+def scan_csv_for_dde(filepath):
+    """
+    Scans a CSV file for DDE payloads.
+    """
+    with open(filepath, 'r') as f:
+        content = f.read()
+    if content.strip().startswith("="):
+        return True
+    return False
+
+def scan_for_pdf_zip_polyglot(filepath):
+    """
+    Scans for a PDF/ZIP polyglot by checking for both headers.
+    """
+    with open(filepath, 'rb') as f:
+        content = f.read()
+    if content.startswith(b'%PDF') and b'PK\x03\x04' in content:
+        return True
+    return False
+
+def scan_docx_for_links(filepath):
+    """
+    Scans a DOCX file for potentially malicious links.
+    """
+    with zipfile.ZipFile(filepath, 'r') as zf:
+        if 'word/document.xml' in zf.namelist():
+            with zf.open('word/document.xml') as f:
+                content = f.read().decode('utf-8')
+                if 'file:///' in content:
+                    return True
+    return False
+
+def scan_xls_for_formulas(filepath):
+    """
+    Scans an XLS file for formulas by looking for the FORMULA record opcode.
+    """
+    # This heuristic looks for the BIFF8 FORMULA record opcode (0x0006).
+    formula_opcode = b'\x06\x00'
+    with open(filepath, 'rb') as f:
+        content = f.read()
+        if formula_opcode in content:
+            return True
+    return False

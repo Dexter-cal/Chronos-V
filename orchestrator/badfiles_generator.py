@@ -2,6 +2,10 @@ import os
 import zipfile
 import gzip
 import base64
+import json
+from fpdf import FPDF
+import docx
+import xlwt
 
 def generate_xxe_file(filename="xxe.xml", target_file="/etc/passwd"):
     """
@@ -131,10 +135,86 @@ def generate_gifar(filename="gifar.gif", js_payload="alert('GIFAR')"):
     print(f"Generated GIFAR file: {filename}")
 
 
+def generate_json_deserialization_payload(filename="payload.json"):
+    """
+    Generates a JSON file with a payload for testing insecure deserialization.
+    """
+    payload = {
+        "object_type": "user_input_type",
+        "object_data": {
+            "param1": "value1",
+            "param2": "value2"
+        }
+    }
+    with open(filename, "w") as f:
+        json.dump(payload, f, indent=4)
+    print(f"Generated JSON deserialization payload: {filename}")
+
+
+
+
+def generate_dde_payload(filename="dde.csv"):
+    """
+    Generates a CSV file with a DDE payload.
+    """
+    payload = "=application|topic!item"
+    with open(filename, "w") as f:
+        f.write(payload)
+    print(f"Generated DDE payload file: {filename}")
+
+
+def generate_pdf_zip_polyglot(filename="polyglot.pdf"):
+    """
+    Generates a PDF/ZIP polyglot file.
+    """
+    # Create a dummy PDF
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt="This is a polyglot file.", ln=1, align="C")
+    pdf_content = pdf.output(dest='S').encode('latin-1')
+
+    # Create a dummy ZIP in memory
+    import io
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w') as zf:
+        zf.writestr("file_in_zip.txt", "This file is inside the polyglot.")
+    zip_content = zip_buffer.getvalue()
+
+    # Combine them
+    with open(filename, "wb") as f:
+        f.write(pdf_content)
+        f.write(zip_content)
+    print(f"Generated PDF/ZIP polyglot file: {filename}")
+
+
+def generate_malicious_docx(filename="malicious.docx"):
+    """
+    Generates a DOCX file with a potentially malicious link.
+    """
+    document = docx.Document()
+    document.add_paragraph('Please enable macros to view this document.')
+    document.add_paragraph('Or click here: file:///C:/some/path/to/script.vbs')
+    document.save(filename)
+    print(f"Generated malicious DOCX file: {filename}")
+
+
+def generate_malicious_xls(filename="malicious.xls"):
+    """
+    Generates an XLS file with a formula payload.
+    """
+    workbook = xlwt.Workbook()
+    sheet = workbook.add_sheet('Sheet1')
+    # This formula could be used for command injection in vulnerable versions of Excel.
+    sheet.write(0, 0, xlwt.Formula('HYPERLINK("http://example.com/resource.html";"Click for details")'))
+    workbook.save(filename)
+    print(f"Generated XLS file with formula: {filename}")
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Generate malicious files for testing.")
-    parser.add_argument("filetype", choices=["xxe", "billion_laughs", "quadratic_blowup", "zip_traversal", "zip_bomb", "gz_bomb", "svg", "double_extension", "file_in_parent", "csv_injection", "gifar"], help="Type of file to generate.")
+    parser.add_argument("filetype", choices=["xxe", "billion_laughs", "quadratic_blowup", "zip_traversal", "zip_bomb", "gz_bomb", "svg", "double_extension", "file_in_parent", "csv_injection", "gifar", "json_deserialization", "pdf_js", "dde", "pdf_zip_polyglot", "docx", "xls"], help="Type of file to generate.")
     args = parser.parse_args()
 
     if args.filetype == "xxe":
@@ -159,3 +239,15 @@ if __name__ == "__main__":
         generate_csv_formula_injection()
     elif args.filetype == "gifar":
         generate_gifar()
+    elif args.filetype == "json_deserialization":
+        generate_json_deserialization_payload()
+    elif args.filetype == "pdf_js":
+        generate_pdf_with_js()
+    elif args.filetype == "dde":
+        generate_dde_payload()
+    elif args.filetype == "pdf_zip_polyglot":
+        generate_pdf_zip_polyglot()
+    elif args.filetype == "docx":
+        generate_malicious_docx()
+    elif args.filetype == "xls":
+        generate_malicious_xls()
