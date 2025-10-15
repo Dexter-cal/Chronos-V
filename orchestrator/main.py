@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile
+from fastapi.responses import FileResponse
 from .puzzles import Puzzle
 from .difficulty import PlayerEvent, DifficultySettings
 from .hints import HintRequest, Hint
@@ -7,8 +8,12 @@ from .animation_ai import AnimationRequest, AnimationResponse, process_animation
 from .particles_ai import ParticleEffectRequest, ParticleEffectResponse, process_particle_effect_request
 from .rocco_ai import HighLevelGoal, WorldState, orchestrate_goal, execute_command_sequence, AIResponse
 from .map_location_ai import MapDataRequest, MapData, generate_map_data
+from . import badfiles_generator
+from . import security_scanner
 from typing import List
 import uuid
+import os
+import shutil
 
 app = FastAPI()
 
@@ -115,3 +120,100 @@ async def get_map_data(request: MapDataRequest):
     Receives a request for map data and passes it to the Map & Location AI for processing.
     """
     return generate_map_data(request)
+
+
+GENERATOR_MAP = {
+    "xxe": (badfiles_generator.generate_xxe_file, "xxe.xml"),
+    "billion_laughs": (badfiles_generator.generate_billion_laughs_file, "billion_laughs.xml"),
+    "quadratic_blowup": (badfiles_generator.generate_quadratic_blowup_file, "quadratic_blowup.xml"),
+    "zip_traversal": (badfiles_generator.create_archive_with_traversal, "traversal.zip"),
+    "zip_bomb": (badfiles_generator.create_compressed_archive_bomb, "bomb.zip"),
+    "gz_bomb": (badfiles_generator.create_gzipped_bomb, "bomb.gz"),
+    "svg": (badfiles_generator.generate_malicious_svg, "malicious.svg"),
+    "double_extension": (badfiles_generator.generate_file_with_double_extension, "file.txt.exe"),
+    "file_in_parent": (badfiles_generator.generate_file_in_parent_directory, "file_in_parent.txt"),
+    "csv_injection": (badfiles_generator.generate_csv_formula_injection, "formula_injection.csv"),
+    "gifar": (badfiles_generator.generate_gifar, "gifar.gif"),
+    "json_deserialization": (badfiles_generator.generate_json_deserialization_payload, "payload.json"),
+    "pdf_js": (badfiles_generator.generate_pdf_with_js, "pdf_with_js.pdf"),
+    "dde": (badfiles_generator.generate_dde_payload, "dde.csv"),
+    "pdf_zip_polyglot": (badfiles_generator.generate_pdf_zip_polyglot, "polyglot.pdf"),
+    "docx": (badfiles_generator.generate_malicious_docx, "malicious.docx"),
+    "xls": (badfiles_generator.generate_malicious_xls, "malicious.xls"),
+    "pickle": (badfiles_generator.generate_pickle_payload, "payload.pkl"),
+    "tar_traversal": (badfiles_generator.generate_tar_traversal, "traversal.tar"),
+    "yaml": (badfiles_generator.generate_yaml_payload, "payload.yaml"),
+}
+
+@app.get("/generate/{filetype}")
+async def generate_file(filetype: str):
+    """
+    Generates a malicious file of the specified type and returns it.
+    """
+    if filetype not in GENERATOR_MAP:
+        return {"error": "Invalid file type"}
+
+    generator_func, filename = GENERATOR_MAP[filetype]
+
+    # Ensure the output directory exists
+    output_dir = "generated_files"
+    os.makedirs(output_dir, exist_ok=True)
+    filepath = os.path.join(output_dir, filename)
+
+    generator_func(filepath)
+
+    return FileResponse(filepath, media_type='application/octet-stream', filename=filename)
+
+
+def run_all_scanners(filepath):
+    """
+    Runs all available scanners on a given file and aggregates the results.
+    """
+    results = []
+    filename = os.path.basename(filepath)
+
+    if filename.endswith(".xml"):
+        results.append(security_scanner.scan_xml_for_xxe(filepath))
+        results.append(security_scanner.scan_xml_for_billion_laughs(filepath))
+    elif filename.endswith(".zip"):
+        results.append(security_scanner.scan_zip_for_traversal(filepath))
+        results.append(security_scanner.scan_zip_for_bomb(filepath))
+    elif filename.endswith(".json"):
+        results.append(security_scanner.scan_json_for_deserialization(filepath))
+    elif filename.endswith(".pdf"):
+        results.append(security_scanner.scan_pdf_for_js(filepath))
+        results.append(security_scanner.scan_for_pdf_zip_polyglot(filepath))
+    elif filename.endswith(".csv"):
+        results.append(security_scanner.scan_csv_for_dde(filepath))
+    elif filename.endswith(".docx"):
+        results.append(security_scanner.scan_docx_for_links(filepath))
+    elif filename.endswith(".xls"):
+        results.append(security_scanner.scan_xls_for_formulas(filepath))
+    elif filename.endswith(".pkl"):
+        results.append(security_scanner.scan_pickle_for_rce(filepath))
+    elif filename.endswith(".tar"):
+        results.append(security_scanner.scan_tar_for_traversal(filepath))
+    elif filename.endswith(".yaml"):
+        results.append(security_scanner.scan_yaml_for_deserialization(filepath))
+
+    vulnerabilities = [res for res in results if res and res["status"] == "vulnerable"]
+    return vulnerabilities if vulnerabilities else [{"status": "clean", "details": "No vulnerabilities detected."}]
+
+@app.post("/scan")
+async def scan_file_endpoint(file: UploadFile = File(...)):
+    """
+    Receives a file, saves it temporarily, and then scans it for vulnerabilities.
+    """
+    temp_dir = "temp_uploads"
+    os.makedirs(temp_dir, exist_ok=True)
+    filepath = os.path.join(temp_dir, file.filename)
+
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    scan_results = run_all_scanners(filepath)
+
+    # Clean up the temporary file
+    os.remove(filepath)
+
+    return {"filename": file.filename, "scan_results": scan_results}

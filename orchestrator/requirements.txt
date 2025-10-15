@@ -4,3 +4,5 @@ fpdf
 python-docx
 xlwt
 PyYAML
+httpx
+python-multipart

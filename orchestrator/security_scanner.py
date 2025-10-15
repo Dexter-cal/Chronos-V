@@ -6,27 +6,24 @@ import tarfile
 def scan_xml_for_xxe(filepath):
     """
     Scans an XML file for signs of a basic XXE payload.
-    It checks for the presence of `<!ENTITY` and `SYSTEM` keywords.
     """
     with open(filepath, 'r') as f:
         content = f.read()
     if "<!ENTITY" in content and "SYSTEM" in content:
-        return True
-    return False
+        return {"status": "vulnerable", "details": "XXE payload detected."}
+    return {"status": "clean", "details": "No XXE payload detected."}
 
 def scan_xml_for_billion_laughs(filepath):
     """
     Scans an XML file for signs of a Billion Laughs attack.
-    It checks for a high number of nested entity references.
     """
     with open(filepath, 'r') as f:
         content = f.read()
-    # A simple heuristic: count the number of entity declarations and references.
     declarations = content.count("<!ENTITY")
     references = content.count("&")
     if declarations > 5 and references > 80:
-        return True
-    return False
+        return {"status": "vulnerable", "details": "Billion Laughs attack detected."}
+    return {"status": "clean", "details": "No Billion Laughs attack detected."}
 
 def scan_zip_for_traversal(filepath):
     """
@@ -35,31 +32,29 @@ def scan_zip_for_traversal(filepath):
     with zipfile.ZipFile(filepath, 'r') as zf:
         for name in zf.namelist():
             if name.startswith("../") or os.path.isabs(name):
-                return True
-    return False
+                return {"status": "vulnerable", "details": f"Path traversal detected in file: {name}"}
+    return {"status": "clean", "details": "No path traversal detected."}
 
 def scan_zip_for_bomb(filepath, max_ratio=10):
     """
-    Scans a zip file for signs of a zip bomb by checking the compression ratio.
+    Scans a zip file for signs of a zip bomb.
     """
-    total_uncompressed_size = 0
-    for zinfo in zipfile.ZipFile(filepath, 'r').infolist():
-        total_uncompressed_size += zinfo.file_size
-
+    total_uncompressed_size = sum(zinfo.file_size for zinfo in zipfile.ZipFile(filepath, 'r').infolist())
     compressed_size = os.path.getsize(filepath)
-    if compressed_size > 0 and (total_uncompressed_size / compressed_size) > max_ratio:
-        return True
-    return False
+    ratio = total_uncompressed_size / compressed_size if compressed_size > 0 else 0
+    if ratio > max_ratio:
+        return {"status": "vulnerable", "details": f"High compression ratio ({ratio:.2f}) detected."}
+    return {"status": "clean", "details": "Normal compression ratio."}
 
 def scan_json_for_deserialization(filepath):
     """
-    Scans a JSON file for keywords often used in insecure deserialization.
+    Scans a JSON file for deserialization keywords.
     """
     with open(filepath, 'r') as f:
         content = f.read()
     if '"__type__":' in content or '"object_type":' in content:
-        return True
-    return False
+        return {"status": "vulnerable", "details": "Potential JSON deserialization vulnerability detected."}
+    return {"status": "clean", "details": "No JSON deserialization keywords found."}
 
 def scan_pdf_for_js(filepath):
     """
@@ -68,8 +63,8 @@ def scan_pdf_for_js(filepath):
     with open(filepath, 'rb') as f:
         content = f.read()
     if b'/JS' in content or b'/JavaScript' in content:
-        return True
-    return False
+        return {"status": "vulnerable", "details": "Embedded JavaScript detected in PDF."}
+    return {"status": "clean", "details": "No embedded JavaScript found in PDF."}
 
 def scan_csv_for_dde(filepath):
     """
@@ -78,18 +73,18 @@ def scan_csv_for_dde(filepath):
     with open(filepath, 'r') as f:
         content = f.read()
     if content.strip().startswith("="):
-        return True
-    return False
+        return {"status": "vulnerable", "details": "DDE payload detected in CSV."}
+    return {"status": "clean", "details": "No DDE payload found in CSV."}
 
 def scan_for_pdf_zip_polyglot(filepath):
     """
-    Scans for a PDF/ZIP polyglot by checking for both headers.
+    Scans for a PDF/ZIP polyglot.
     """
     with open(filepath, 'rb') as f:
         content = f.read()
     if content.startswith(b'%PDF') and b'PK\x03\x04' in content:
-        return True
-    return False
+        return {"status": "vulnerable", "details": "PDF/ZIP polyglot detected."}
+    return {"status": "clean", "details": "File is not a PDF/ZIP polyglot."}
 
 def scan_docx_for_links(filepath):
     """
@@ -100,41 +95,39 @@ def scan_docx_for_links(filepath):
             with zf.open('word/document.xml') as f:
                 content = f.read().decode('utf-8')
                 if 'file:///' in content:
-                    return True
-    return False
+                    return {"status": "vulnerable", "details": "External file link detected in DOCX."}
+    return {"status": "clean", "details": "No external file links found in DOCX."}
 
 def scan_xls_for_formulas(filepath):
     """
-    Scans an XLS file for formulas by looking for the FORMULA record opcode.
+    Scans an XLS file for formulas.
     """
-    # This heuristic looks for the BIFF8 FORMULA record opcode (0x0006).
     formula_opcode = b'\x06\x00'
     with open(filepath, 'rb') as f:
         content = f.read()
         if formula_opcode in content:
-            return True
-    return False
+            return {"status": "vulnerable", "details": "Formula detected in XLS file."}
+    return {"status": "clean", "details": "No formulas detected in XLS file."}
 
 def scan_pickle_for_rce(filepath):
     """
-    Scans a pickle file for the REDUCE opcode, which is a sign of RCE.
+    Scans a pickle file for the REDUCE opcode.
     """
-    # This heuristic looks for the REDUCE opcode ('R').
     with open(filepath, 'rb') as f:
         content = f.read()
         if b'R' in content:
-            return True
-    return False
+            return {"status": "vulnerable", "details": "REDUCE opcode detected in pickle file."}
+    return {"status": "clean", "details": "No REDUCE opcode found in pickle file."}
 
 def scan_tar_for_traversal(filepath):
     """
-    Scans a tar file for path traversal attempts.
+    Scans a tar file for path traversal.
     """
     with tarfile.open(filepath, 'r') as tf:
         for member in tf.getmembers():
             if member.name.startswith("../") or os.path.isabs(member.name):
-                return True
-    return False
+                return {"status": "vulnerable", "details": f"Path traversal detected in TAR file: {member.name}"}
+    return {"status": "clean", "details": "No path traversal detected in TAR file."}
 
 def scan_yaml_for_deserialization(filepath):
     """
@@ -143,5 +136,5 @@ def scan_yaml_for_deserialization(filepath):
     with open(filepath, 'r') as f:
         content = f.read()
     if '!!python/object/apply' in content:
-        return True
-    return False
+        return {"status": "vulnerable", "details": "Potential YAML deserialization vulnerability detected."}
+    return {"status": "clean", "details": "No YAML deserialization keywords found."}
