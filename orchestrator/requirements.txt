@@ -6,3 +6,6 @@ xlwt
 PyYAML
 httpx
 python-multipart
+piexif
+Pillow
+PyPDF2

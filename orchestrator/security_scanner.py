@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 import os
 import tarfile
+import PyPDF2
 
 def scan_xml_for_xxe(filepath):
     """
@@ -138,3 +139,35 @@ def scan_yaml_for_deserialization(filepath):
     if '!!python/object/apply' in content:
         return {"status": "vulnerable", "details": "Potential YAML deserialization vulnerability detected."}
     return {"status": "clean", "details": "No YAML deserialization keywords found."}
+
+def scan_image_for_malicious_metadata(filepath):
+    """
+    Scans an image file for malicious metadata.
+    """
+    # This is a simplified scanner. A real one would need to parse EXIF data.
+    # For now, we'll just check for the presence of a script tag.
+    with open(filepath, 'rb') as f:
+        content = f.read()
+        if b'<script>' in content:
+            return {"status": "vulnerable", "details": "Script tag detected in image metadata."}
+    return {"status": "clean", "details": "No script tags found in image metadata."}
+
+def scan_pdf_for_hidden_text(filepath):
+    """
+    Scans a PDF file for hidden text by checking the text rendering mode.
+    """
+    try:
+        with open(filepath, 'rb') as f:
+            reader = PyPDF2.PdfReader(f)
+            for page in reader.pages:
+                if '/Contents' in page:
+                    contents = page['/Contents'].get_object()
+                    if hasattr(contents, 'get_data'):
+                        data = contents.get_data()
+                        # Check for the text rendering mode '3' (invisible)
+                        if b' 3 Tr' in data:
+                            return {"status": "vulnerable", "details": "Hidden text detected in PDF."}
+    except Exception:
+        # If parsing fails, it's not a standard PDF or is corrupted.
+        pass
+    return {"status": "clean", "details": "No hidden text found in PDF."}
